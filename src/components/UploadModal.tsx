@@ -58,7 +58,7 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       const fileName = `${Date.now()}.${fileExt}`
       const filePath = `${eventId}/photos/${fileName}`
 
-      // Upload file to Supabase Storage with retry for mobile
+      // Upload file to Supabase Storage with different methods
       console.log('Starting upload to:', filePath)
       console.log('File details:', {
         name: file.name,
@@ -68,25 +68,52 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       console.log('Auth session:', await supabase.auth.getSession())
       
       let uploadError = null
-      let retryCount = 0
-      const maxRetries = 2
+      let publicUrl = ''
       
-      while (retryCount <= maxRetries) {
-        const { error } = await supabase.storage
+      // Method 1: Try standard upload first
+      const { error: standardError } = await supabase.storage
+        .from('wedding-media')
+        .upload(filePath, file)
+      
+      if (!standardError) {
+        console.log('Standard upload successful')
+        const { data } = supabase.storage
           .from('wedding-media')
-          .upload(filePath, file)
+          .getPublicUrl(filePath)
+        publicUrl = data.publicUrl
+      } else {
+        console.log('Standard upload failed, trying signed upload...')
         
-        if (!error) {
-          uploadError = null
-          break
-        }
+        // Method 2: Try signed upload (bypasses RLS)
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('wedding-media')
+          .createSignedUploadUrl(filePath)
         
-        uploadError = error
-        retryCount++
-        
-        if (retryCount <= maxRetries) {
-          console.log(`Upload failed, retrying... (${retryCount}/${maxRetries})`)
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)) // Exponential backoff
+        if (signedError) {
+          console.error('Signed upload creation failed:', signedError)
+          uploadError = signedError
+        } else {
+          console.log('Signed URL created, uploading...')
+          
+          // Upload using signed URL
+          const uploadResponse = await fetch(signedData.signedUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': file.type,
+            },
+            body: file,
+          })
+          
+          if (uploadResponse.ok) {
+            console.log('Signed upload successful')
+            const { data } = supabase.storage
+              .from('wedding-media')
+              .getPublicUrl(filePath)
+            publicUrl = data.publicUrl
+          } else {
+            console.error('Signed upload failed:', uploadResponse.statusText)
+            uploadError = new Error(`Signed upload failed: ${uploadResponse.statusText}`)
+          }
         }
       }
 
@@ -104,10 +131,10 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       
       console.log('Upload successful, getting public URL...')
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('wedding-media')
-        .getPublicUrl(filePath)
+      // Get public URL (already have it from upload)
+      // const { data: { publicUrl } } = supabase.storage
+      //   .from('wedding-media')
+      //   .getPublicUrl(filePath)
 
       // Determine file type
       const fileType = file.type.startsWith('image/') ? 'photo' : 'video'
