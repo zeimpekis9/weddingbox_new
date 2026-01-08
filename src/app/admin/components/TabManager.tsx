@@ -152,9 +152,9 @@ export default function TabManager({
             <button
               key={tab}
               onClick={() => setActiveAdminTab(tab)}
-              className={`px-4 py-2 font-medium transition-colors ${
-                activeAdminTab === tab 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
+              className={`px-4 py-2 font-medium ${
+                activeAdminTab === tab
+                  ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
@@ -166,79 +166,39 @@ export default function TabManager({
         {/* Tab Content */}
         <div className="space-y-4">
           {getTabSubmissions(activeAdminTab).length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No content in this tab</p>
-            </div>
+            <p className="text-center text-gray-500 py-8">
+              No content in this tab
+            </p>
           ) : (
             getTabSubmissions(activeAdminTab).map((submission) => (
-              <div key={submission.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        submission.type === 'photo' ? 'bg-blue-100 text-blue-800' :
-                        submission.type === 'video' ? 'bg-purple-100 text-purple-800' :
-                        submission.type === 'message' ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {submission.type}
-                      </span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        submission.approved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {submission.approved ? 'Approved' : 'Pending'}
-                      </span>
-                    </div>
-                    
-                    {submission.guest_name && (
-                      <p className="text-sm text-gray-600 mb-1">From: {submission.guest_name}</p>
-                    )}
-                    
-                    {submission.message_text && (
-                      <p className="text-gray-700 mb-2">{submission.message_text}</p>
-                    )}
-                    
-                    {submission.content_url && (
-                      <div className="mb-2">
-                        {submission.type === 'photo' ? (
-                          <div 
-                            onClick={() => handleImageClick(submission)}
-                            className="cursor-pointer hover:opacity-90 transition-opacity"
-                          >
-                            <img src={submission.content_url} alt="Submission" className="max-w-xs h-32 object-cover rounded" />
-                          </div>
-                        ) : submission.type === 'video' ? (
-                          <div 
-                            onClick={() => handleImageClick(submission)}
-                            className="cursor-pointer hover:opacity-90 transition-opacity"
-                          >
-                            <video src={submission.content_url} className="max-w-xs h-32 object-cover rounded" controls></video>
-                          </div>
-                        ) : submission.type === 'voice' ? (
-                          <audio src={submission.content_url} controls />
-                        ) : null}
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-gray-500">
+              <div
+                key={submission.id}
+                className="border border-gray-200 rounded-lg p-4 mb-4"
+              >
+                <div className="flex justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      {submission.guest_name}
+                    </p>
+                    <p className="text-xs text-gray-400">
                       {new Date(submission.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  
-                  <div className="flex items-center space-x-2 ml-4">
+
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => onToggleApproval(submission.id, !submission.approved)}
-                      className="text-gray-400 hover:text-gray-600"
-                      title={submission.approved ? 'Hide from public' : 'Show to public'}
+                      onClick={() =>
+                        onToggleApproval(submission.id, !submission.approved)
+                      }
                     >
-                      {submission.approved ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {submission.approved ? <EyeOff /> : <Eye />}
                     </button>
+
                     <button
                       onClick={() => onDeleteSubmission(submission.id)}
-                      className="text-red-400 hover:text-red-600"
-                      title="Delete submission"
+                      className="text-red-500"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 />
                     </button>
                   </div>
                 </div>
@@ -246,19 +206,19 @@ export default function TabManager({
             ))
           )}
         </div>
-      </div>
 
-      {/* Image Viewer Modal */}
-      {showImageViewer && selectedImage && (
-        <ImageViewerModal
-          isOpen={showImageViewer}
-          onClose={() => setShowImageViewer(false)}
-          imageUrl={selectedImage.url}
-          type={selectedImage.type}
-          guestName={selectedImage.guestName}
-          createdAt={selectedImage.createdAt}
-        />
-      )}
+        {/* Image Viewer Modal */}
+        {showImageViewer && selectedImage && (
+          <ImageViewerModal
+            isOpen={showImageViewer}
+            onClose={() => setShowImageViewer(false)}
+            imageUrl={selectedImage.url}
+            type={selectedImage.type}
+            guestName={selectedImage.guestName}
+            createdAt={selectedImage.createdAt}
+          />
+        )}
+      </div>
     </div>
   )
 }
