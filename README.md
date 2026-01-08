@@ -179,3 +179,4 @@ Built with ❤️ for happy couples everywhere. If you encounter any issues, ple
 4. Storage bucket exists and has correct policies
 
 Enjoy your wedding memories! 💍
+"# weddingbox_new" 
