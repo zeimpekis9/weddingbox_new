@@ -51,11 +51,108 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
   }, [])
 
   const startRecording = async () => {
+    // Reset any previous errors
+    setMobileError(null)
+    
     try {
+      // Request microphone access first
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: true,
-        video: false // Only request audio on mobile
+        video: false
       })
+      
+      // Check if MediaRecorder is supported
+      if (typeof MediaRecorder === 'undefined') {
+        throw new Error('MediaRecorder is not supported on this device')
+      }
+      
+      // Check if audio/webm is supported
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        // Try fallback to audio/mp4
+        const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm'
+        const mediaRecorder = new MediaRecorder(stream, { mimeType })
+        
+        mediaRecorderRef.current = mediaRecorder
+        audioChunksRef.current = []
+        
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data)
+        }
+        
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
+          const audioURL = URL.createObjectURL(audioBlob)
+          setAudioURL(audioURL)
+          setIsRecording(false)
+          setRecordingTime(0)
+          
+          // Upload to Supabase
+          const fileName = `voice-${Date.now()}.${mimeType === 'audio/mp4' ? 'm4a' : 'webm'}`
+          const filePath = `${eventId}/voices/${fileName}`
+          
+          try {
+            const { error: uploadError } = await supabase.storage
+              .from('wedding-media')
+              .upload(filePath, audioBlob)
+            
+            if (uploadError) throw uploadError
+            
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('wedding-media')
+              .getPublicUrl(filePath)
+            
+            // Save to database
+            const { error: dbError } = await supabase
+              .from('submissions')
+              .insert({
+                event_id: eventId,
+                type: 'voice',
+                content_url: publicUrl,
+                guest_name: guestName.trim() || null,
+                approved: manualApproval ? false : true
+              })
+            
+            if (dbError) throw dbError
+            
+            // Handle auto-approval if manual approval is disabled
+            if (!manualApproval) {
+              setTimeout(async () => {
+                try {
+                  await supabase
+                    .from('submissions')
+                    .update({ approved: true })
+                    .eq('event_id', eventId)
+                    .eq('content_url', publicUrl)
+                  
+                  console.log('Auto-approved voice after', autoApprovalDelay, 'seconds')
+                } catch (error) {
+                  console.error('Auto-approval failed:', error)
+                }
+              }, autoApprovalDelay * 1000)
+            }
+            
+            onSuccess()
+            onClose()
+          } catch (error: any) {
+            console.error('Recording error:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+            setMobileError(`Recording failed: ${errorMessage}. Please check microphone permissions.`)
+          }
+        }
+        
+        // Start recording
+        mediaRecorder.start()
+        setIsRecording(true)
+        
+        // Start timer
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1)
+        }, 1000)
+        
+        return
+      }
+      
       const mediaRecorder = new MediaRecorder(stream)
       
       mediaRecorderRef.current = mediaRecorder
@@ -126,6 +223,15 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
           setMobileError(`Recording failed: ${errorMessage}. Please check microphone permissions.`)
         }
       }
+      
+      // Start recording
+      mediaRecorder.start()
+      setIsRecording(true)
+      
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
       
     } catch (error) {
       console.error('Microphone access error:', error)
@@ -269,11 +375,13 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                   {/* Recording Button */}
                   <button
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors ${
+                    onTouchStart={isRecording ? stopRecording : startRecording}
+                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors touch-manipulation ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                        : 'bg-primary-600 hover:bg-primary-700'
+                        : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
                     }`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     {isRecording ? (
                       <Square className="w-8 h-8 text-white" />
