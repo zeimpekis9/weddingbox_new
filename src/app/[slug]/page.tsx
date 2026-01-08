@@ -602,9 +602,6 @@ const handleShare = async () => {
       {showMessageModal && (
         <MessageModal 
           eventId={event.id}
-          moderationEnabled={settings?.moderation_enabled}
-          manualApproval={settings?.manual_approval}
-          autoApprovalDelay={settings?.auto_approval_delay || 5}
           onClose={() => setShowMessageModal(false)}
           onSuccess={() => {
             setShowMessageModal(false)
@@ -616,9 +613,6 @@ const handleShare = async () => {
       {showVoiceModal && (
         <VoiceModal 
           eventId={event.id}
-          moderationEnabled={settings?.moderation_enabled}
-          manualApproval={settings?.manual_approval}
-          autoApprovalDelay={settings?.auto_approval_delay || 5}
           onClose={() => setShowVoiceModal(false)}
           onSuccess={() => {
             setShowVoiceModal(false)
