@@ -107,7 +107,13 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Share your wishes, memories, or congratulations..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none overflow-y-auto max-h-32"
+                style={{ 
+                  minHeight: '100px',
+                  maxHeight: '200px',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word'
+                }}
               />
               <p className="text-xs text-gray-500 mt-1">
                 {message.length}/500 characters

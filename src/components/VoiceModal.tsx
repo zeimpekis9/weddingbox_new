@@ -423,37 +423,21 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
 
                   {/* Recording Button */}
                   <button
-                    onClick={() => {
-                      console.log('Button clicked, isRecording:', isRecording)
-                      if (isRecording) {
-                        stopRecording()
-                      } else {
-                        startRecording()
-                      }
-                    }}
-                    onTouchEnd={(e) => {
-                      console.log('Touch ended, isRecording:', isRecording)
+                    type="button"
+                    onClick={(e) => {
                       e.preventDefault()
+                      console.log('Simple button click, isRecording:', isRecording)
                       if (isRecording) {
                         stopRecording()
                       } else {
                         startRecording()
                       }
                     }}
-                    onMouseDown={(e) => {
-                      console.log('Mouse down, isRecording:', isRecording)
-                      if (isRecording) {
-                        stopRecording()
-                      } else {
-                        startRecording()
-                      }
-                    }}
-                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors touch-manipulation ${
+                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                         : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
                     }`}
-                    style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                   >
                     {isRecording ? (
                       <Square className="w-8 h-8 text-white" />
