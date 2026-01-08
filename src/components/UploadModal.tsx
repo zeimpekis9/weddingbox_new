@@ -79,13 +79,13 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
           type: fileType,
           content_url: publicUrl,
           guest_name: guestName || null,
-          approved: false // Always start as unapproved
+          approved: manualApproval ? false : true // If manual approval is off, auto-approve; otherwise start unapproved
         })
 
       if (dbError) throw dbError
 
       // Handle auto-approval if manual approval is disabled
-      if (!manualApproval) {
+      if (!manualApproval && !manualApproval) {
         setTimeout(async () => {
           try {
             await supabase
@@ -94,7 +94,7 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
               .eq('event_id', eventId)
               .eq('content_url', publicUrl)
             
-            console.log('Auto-approved submission after', autoApprovalDelay, 'seconds')
+            console.log('Auto-approved photo/video after', autoApprovalDelay, 'seconds')
           } catch (error) {
             console.error('Auto-approval failed:', error)
           }
