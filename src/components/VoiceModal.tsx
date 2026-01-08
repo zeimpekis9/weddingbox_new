@@ -128,13 +128,13 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
           type: 'voice',
           content_url: publicUrl,
           guest_name: guestName.trim() || null,
-          approved: false // Always start as unapproved
+          approved: manualApproval ? false : true // If manual approval is off, auto-approve; otherwise start unapproved
         })
 
       if (dbError) throw dbError
 
       // Handle auto-approval if manual approval is disabled
-      if (!manualApproval) {
+      if (!manualApproval && !manualApproval) {
         setTimeout(async () => {
           try {
             await supabase
