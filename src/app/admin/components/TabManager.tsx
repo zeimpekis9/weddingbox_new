@@ -212,7 +212,7 @@ export default function TabManager({
                             onClick={() => handleImageClick(submission)}
                             className="cursor-pointer hover:opacity-90 transition-opacity"
                           >
-                            <video src={submission.content_url} className="max-w-xs h-32 object-cover rounded" controls />
+                            <video src={submission.content_url} className="max-w-xs h-32 object-cover rounded" controls></video>
                           </div>
                         ) : submission.type === 'voice' ? (
                           <audio src={submission.content_url} controls />
