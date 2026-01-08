@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Georgia:wght@400;700&family=Baskerville:wght@400;700&family=Times+New+Roman:wght@400;700&family=Arial:wght@400;700&family=Helvetica:wght@400;700&family=Verdana:wght@400;700&family=Trebuchet+MS:wght@400;700&family=Palatino:wght@400;700&family=Garamond:wght@400;700&family=Caslon:wght@400;700&family=Amanda+Black:wght@400;700');
+
+@layer base {
+  body {
+    @apply bg-wedding-800 text-gray-900;
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 600;
+  }
+  
+  .font-display {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  
+  .font-georgia {
+    font-family: 'Georgia', serif;
+  }
+  
+  .font-baskerville {
+    font-family: 'Baskerville', serif;
+  }
+  
+  .font-times {
+    font-family: 'Times New Roman', serif;
+  }
+  
+  .font-arial {
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .font-helvetica {
+    font-family: 'Helvetica', sans-serif;
+  }
+  
+  .font-verdana {
+    font-family: 'Verdana', sans-serif;
+  }
+  
+  .font-trebuchet {
+    font-family: 'Trebuchet MS', sans-serif;
+  }
+  
+  .font-palatino {
+    font-family: 'Palatino', serif;
+  }
+  
+  .font-garamond {
+    font-family: 'Garamond', serif;
+  }
+  
+  .font-caslon {
+    font-family: 'Caslon', serif;
+  }
+  
+  .font-amanda {
+    font-family: 'Amanda Black', cursive;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-5px);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(-60px) translateX(15px);
+    opacity: 0.4;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-wedding-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-wedding-700 transition-colors shadow-wedding;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-wedding-600 border-2 border-wedding-600 px-6 py-3 rounded-xl font-medium hover:bg-wedding-50 transition-colors;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-wedding border border-wedding-200 p-6;
+  }
+
+  .input-field {
+    @apply bg-wedding-100 border border-wedding-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-wedding-500 focus:border-transparent transition-all;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    @apply bg-wedding-50 rounded-2xl shadow-wedding max-w-md w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  .tab-active {
+    @apply text-wedding-800 border-b-2 border-wedding-600 font-medium;
+  }
+
+  .event-card {
+    @apply bg-wedding-100 border-4 border-wedding-700 rounded-2xl shadow-wedding p-6 max-w-md mx-auto;
+  }
+
+  .event-title {
+    @apply text-wedding-900 text-3xl font-bold text-center mb-2;
+  }
+
+  .event-date {
+    @apply text-wedding-600 text-lg text-center mb-6;
+  }
+}
