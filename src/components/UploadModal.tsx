@@ -103,9 +103,18 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
 
       onSuccess()
       onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error)
-      alert('Failed to upload. Please try again.')
+      setUploading(false)
+      
+      // Provide more specific error information
+      if (error.message) {
+        alert(`Upload failed: ${error.message}`)
+      } else if (error.status) {
+        alert(`Upload failed: HTTP ${error.status} - ${error.statusText || 'Unknown error'}`)
+      } else {
+        alert('Upload failed: Please check your internet connection and try again.')
+      }
     } finally {
       setUploading(false)
     }
