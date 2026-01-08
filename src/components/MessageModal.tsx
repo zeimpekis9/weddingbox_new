@@ -70,8 +70,8 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
+      <div className="bg-white rounded-xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="p-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Leave a Message</h2>
             <button
@@ -82,7 +82,7 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 overflow-y-auto">
             {/* Guest Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -107,12 +107,13 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Share your wishes, memories, or congratulations..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none overflow-y-auto max-h-32"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                 style={{ 
-                  minHeight: '100px',
-                  maxHeight: '200px',
+                  minHeight: '120px',
+                  maxHeight: '250px',
                   wordWrap: 'break-word',
-                  overflowWrap: 'break-word'
+                  overflowWrap: 'break-word',
+                  whiteSpace: 'pre-wrap'
                 }}
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -137,7 +138,7 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-shrink-0">
               <button
                 onClick={onClose}
                 className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"

@@ -422,29 +422,40 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                   </div>
 
                   {/* Recording Button */}
-                  <button
-                    type="button"
+                  <div 
                     onClick={(e) => {
                       e.preventDefault()
-                      console.log('Simple button click, isRecording:', isRecording)
+                      e.stopPropagation()
+                      console.log('Div clicked, isRecording:', isRecording)
                       if (isRecording) {
                         stopRecording()
                       } else {
                         startRecording()
                       }
                     }}
-                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors ${
+                    onTouchStart={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('Div touch start, isRecording:', isRecording)
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
+                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                         : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
                     }`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     {isRecording ? (
                       <Square className="w-8 h-8 text-white" />
                     ) : (
                       <Mic className="w-8 h-8 text-white" />
                     )}
-                  </button>
+                  </div>
 
                   <p className="text-sm text-gray-600">
                     {isRecording ? 'Recording... Tap to stop' : 'Tap to start recording'}
