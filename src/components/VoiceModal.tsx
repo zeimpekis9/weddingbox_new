@@ -155,10 +155,12 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
         mediaRecorder.start()
         setIsRecording(true)
         
-        // Start timer (only once)
-        timerRef.current = setInterval(() => {
-          setRecordingTime(prev => prev + 1)
-        }, 1000)
+        // Start timer (only once, with null check)
+        if (!timerRef.current) {
+          timerRef.current = setInterval(() => {
+            setRecordingTime(prev => prev + 1)
+          }, 1000)
+        }
         
         return
       }
@@ -243,10 +245,12 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
       mediaRecorder.start()
       setIsRecording(true)
       
-      // Start timer (only once)
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1)
-      }, 1000)
+      // Start timer (only once, with null check)
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1)
+        }, 1000)
+      }
       
     } catch (error) {
       console.error('Microphone access error:', error)
@@ -260,8 +264,10 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
       mediaRecorderRef.current.stop()
       setIsRecording(false)
       
+      // Clear timer immediately
       if (timerRef.current) {
         clearInterval(timerRef.current)
+        timerRef.current = null
       }
     }
   }

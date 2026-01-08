@@ -30,13 +30,13 @@ export default function MessageModal({ eventId, onClose, onSuccess, manualApprov
           type: 'message',
           message_text: message.trim(),
           guest_name: guestName.trim() || null,
-          approved: false // Always start as unapproved
+          approved: manualApproval ? false : true // If manual approval is off, auto-approve; otherwise start unapproved
         })
 
       if (error) throw error
 
       // Handle auto-approval if manual approval is disabled
-      if (!manualApproval) {
+      if (!manualApproval && autoApprovalDelay > 0) {
         setTimeout(async () => {
           try {
             await supabase
