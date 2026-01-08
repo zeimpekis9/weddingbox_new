@@ -120,15 +120,17 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
           
           onSuccess()
           onClose()
-        } catch (error) {
+        } catch (error: any) {
           console.error('Recording error:', error)
-          setMobileError(`Recording failed: ${error.message}. Please check microphone permissions.`)
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+          setMobileError(`Recording failed: ${errorMessage}. Please check microphone permissions.`)
         }
       }
       
     } catch (error) {
       console.error('Microphone access error:', error)
-      setMobileError(`Microphone access denied: ${error.message}. Please allow microphone access.`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setMobileError(`Microphone access denied: ${errorMessage}. Please allow microphone access.`)
     }
   }
 
