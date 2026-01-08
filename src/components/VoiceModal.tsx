@@ -54,6 +54,11 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
     // Reset any previous errors
     setMobileError(null)
     
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    
     try {
       // Request microphone access first
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -80,6 +85,11 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
         }
         
         mediaRecorder.onstop = async () => {
+          // Clear timer when recording stops
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+          }
+          
           const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
           const audioURL = URL.createObjectURL(audioBlob)
           setAudioURL(audioURL)
@@ -145,7 +155,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
         mediaRecorder.start()
         setIsRecording(true)
         
-        // Start timer
+        // Start timer (only once)
         timerRef.current = setInterval(() => {
           setRecordingTime(prev => prev + 1)
         }, 1000)
@@ -163,6 +173,11 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
       }
       
       mediaRecorder.onstop = async () => {
+        // Clear timer when recording stops
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+        
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         const audioURL = URL.createObjectURL(audioBlob)
         setAudioURL(audioURL)
@@ -228,7 +243,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
       mediaRecorder.start()
       setIsRecording(true)
       
-      // Start timer
+      // Start timer (only once)
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1)
       }, 1000)

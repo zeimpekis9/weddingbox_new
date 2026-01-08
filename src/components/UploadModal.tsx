@@ -23,15 +23,17 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      // Check file size (max 10MB)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB')
+      // Check file size (reduce to 5MB for mobile)
+      const maxSize = 5 * 1024 * 1024 // 5MB for mobile
+      if (selectedFile.size > maxSize) {
+        alert(`File size must be less than 5MB. Selected file: ${(selectedFile.size / 1024 / 1024).toFixed(1)}MB`)
         return
       }
 
-      // Check file type
-      if (!selectedFile.type.startsWith('image/') && !selectedFile.type.startsWith('video/')) {
-        alert('Please select an image or video file')
+      // Check file type (be more permissive for mobile)
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']
+      if (!allowedTypes.includes(selectedFile.type) && !selectedFile.type.startsWith('image/') && !selectedFile.type.startsWith('video/')) {
+        alert(`Unsupported file type: ${selectedFile.type}. Please select an image or video file.`)
         return
       }
 
@@ -56,12 +58,51 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       const fileName = `${Date.now()}.${fileExt}`
       const filePath = `${eventId}/photos/${fileName}`
 
-      // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('wedding-media')
-        .upload(filePath, file)
+      // Upload file to Supabase Storage with retry for mobile
+      console.log('Starting upload to:', filePath)
+      console.log('File details:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      })
+      console.log('Auth session:', await supabase.auth.getSession())
+      
+      let uploadError = null
+      let retryCount = 0
+      const maxRetries = 2
+      
+      while (retryCount <= maxRetries) {
+        const { error } = await supabase.storage
+          .from('wedding-media')
+          .upload(filePath, file)
+        
+        if (!error) {
+          uploadError = null
+          break
+        }
+        
+        uploadError = error
+        retryCount++
+        
+        if (retryCount <= maxRetries) {
+          console.log(`Upload failed, retrying... (${retryCount}/${maxRetries})`)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)) // Exponential backoff
+        }
+      }
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError)
+        // Provide mobile-specific error messages
+        if (uploadError.message?.includes('policy')) {
+          throw new Error('Upload permissions error. Please try again or contact support.')
+        } else if (uploadError.message?.includes('size')) {
+          throw new Error('File too large. Please choose a smaller file.')
+        } else {
+          throw uploadError
+        }
+      }
+      
+      console.log('Upload successful, getting public URL...')
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -72,6 +113,7 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       const fileType = file.type.startsWith('image/') ? 'photo' : 'video'
 
       // Save submission to database
+      console.log('Saving to database...')
       const { error: dbError } = await supabase
         .from('submissions')
         .insert({
@@ -82,7 +124,12 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
           approved: manualApproval ? false : true // If manual approval is off, auto-approve; otherwise start unapproved
         })
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('Database insert error:', dbError)
+        throw dbError
+      }
+      
+      console.log('Database save successful')
 
       // Handle auto-approval if manual approval is disabled
       if (!manualApproval && !manualApproval) {
@@ -107,14 +154,24 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       console.error('Upload error:', error)
       setUploading(false)
       
-      // Provide more specific error information
+      // Provide mobile-friendly error messages
+      let errorMessage = 'Upload failed. Please try again.'
+      
       if (error.message) {
-        alert(`Upload failed: ${error.message}`)
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again.'
+        } else if (error.message.includes('policy')) {
+          errorMessage = 'Permission denied. The upload feature may be temporarily unavailable.'
+        } else if (error.message.includes('size')) {
+          errorMessage = 'File too large. Please choose a smaller photo (under 5MB).'
+        } else {
+          errorMessage = `Upload failed: ${error.message}`
+        }
       } else if (error.status) {
-        alert(`Upload failed: HTTP ${error.status} - ${error.statusText || 'Unknown error'}`)
-      } else {
-        alert('Upload failed: Please check your internet connection and try again.')
+        errorMessage = `Upload failed: Server error (${error.status}). Please try again.`
       }
+      
+      alert(errorMessage)
     } finally {
       setUploading(false)
     }
@@ -153,7 +210,7 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
                 <div className="space-y-2">
                   <Upload className="w-12 h-12 text-wedding-400 mx-auto" />
                   <p className="text-wedding-600">Click to upload a photo or video</p>
-                  <p className="text-sm text-wedding-400">Max file size: 10MB</p>
+                  <p className="text-sm text-wedding-400">Max file size: 5MB (mobile optimized)</p>
                 </div>
               )}
             </div>
