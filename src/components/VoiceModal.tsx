@@ -19,11 +19,15 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
   const [uploading, setUploading] = useState(false)
   const [guestName, setGuestName] = useState('')
   const [recordingTime, setRecordingTime] = useState(0)
+  const [mobileError, setMobileError] = useState<string | null>(null)
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Check if MediaRecorder is supported
+  const [isMediaRecorderSupported, setIsMediaRecorderSupported] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -36,39 +40,95 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
     }
   }, [audioURL])
 
+  // Check if MediaRecorder is supported on component mount
+  useEffect(() => {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('audio/webm')) {
+      setIsMediaRecorderSupported(false)
+      setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
+      return
+    }
+    setIsMediaRecorderSupported(true)
+  }, [])
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true,
+        video: false // Only request audio on mobile
+      })
       const mediaRecorder = new MediaRecorder(stream)
       
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
-
+      
       mediaRecorder.ondataavailable = (event) => {
         audioChunksRef.current.push(event.data)
       }
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' })
-        const url = URL.createObjectURL(audioBlob)
-        setAudioURL(url)
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const audioURL = URL.createObjectURL(audioBlob)
+        setAudioURL(audioURL)
+        setIsRecording(false)
+        setRecordingTime(0)
         
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop())
+        // Upload to Supabase
+        const fileName = `voice-${Date.now()}.webm`
+        const filePath = `${eventId}/voices/${fileName}`
+        
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from('wedding-media')
+            .upload(filePath, audioBlob)
+          
+          if (uploadError) throw uploadError
+          
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('wedding-media')
+            .getPublicUrl(filePath)
+          
+          // Save to database
+          const { error: dbError } = await supabase
+            .from('submissions')
+            .insert({
+              event_id: eventId,
+              type: 'voice',
+              content_url: publicUrl,
+              guest_name: guestName.trim() || null,
+              approved: manualApproval ? false : true
+            })
+          
+          if (dbError) throw dbError
+          
+          // Handle auto-approval if manual approval is disabled
+          if (!manualApproval) {
+            setTimeout(async () => {
+              try {
+                await supabase
+                  .from('submissions')
+                  .update({ approved: true })
+                  .eq('event_id', eventId)
+                  .eq('content_url', publicUrl)
+                
+                console.log('Auto-approved voice after', autoApprovalDelay, 'seconds')
+              } catch (error) {
+                console.error('Auto-approval failed:', error)
+              }
+            }, autoApprovalDelay * 1000)
+          }
+          
+          onSuccess()
+          onClose()
+        } catch (error) {
+          console.error('Recording error:', error)
+          setMobileError(`Recording failed: ${error.message}. Please check microphone permissions.`)
+        }
       }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-      setRecordingTime(0)
-
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1)
-      }, 1000)
-
+      
     } catch (error) {
-      console.error('Error accessing microphone:', error)
-      alert('Unable to access microphone. Please check your permissions.')
+      console.error('Microphone access error:', error)
+      setMobileError(`Microphone access denied: ${error.message}. Please allow microphone access.`)
     }
   }
 
