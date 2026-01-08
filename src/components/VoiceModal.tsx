@@ -42,21 +42,49 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
 
   // Check if MediaRecorder is supported on component mount
   useEffect(() => {
-    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('audio/webm')) {
+    console.log('Checking MediaRecorder support on mobile...')
+    console.log('MediaRecorder available:', typeof MediaRecorder !== 'undefined')
+    
+    if (typeof MediaRecorder === 'undefined') {
+      console.error('MediaRecorder is undefined')
       setIsMediaRecorderSupported(false)
       setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
       return
     }
+    
+    // Check webm support but be more permissive for mobile
+    const webmSupported = MediaRecorder.isTypeSupported('audio/webm')
+    const mp4Supported = MediaRecorder.isTypeSupported('audio/mp4')
+    console.log('WebM supported:', webmSupported)
+    console.log('MP4 supported:', mp4Supported)
+    
+    if (!webmSupported && !mp4Supported) {
+      console.error('No audio formats supported')
+      setIsMediaRecorderSupported(false)
+      setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
+      return
+    }
+    
+    console.log('MediaRecorder is supported')
     setIsMediaRecorderSupported(true)
   }, [])
 
   const startRecording = async () => {
+    console.log('startRecording called, isMediaRecorderSupported:', isMediaRecorderSupported)
+    console.log('Current isRecording state:', isRecording)
+    
     // Reset any previous errors
     setMobileError(null)
     
     // Clear any existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current)
+    }
+    
+    if (!isMediaRecorderSupported) {
+      console.error('MediaRecorder not supported')
+      setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
+      return
     }
     
     try {
@@ -395,14 +423,37 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
 
                   {/* Recording Button */}
                   <button
-                    onClick={isRecording ? stopRecording : startRecording}
-                    onTouchStart={isRecording ? stopRecording : startRecording}
+                    onClick={() => {
+                      console.log('Button clicked, isRecording:', isRecording)
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      console.log('Touch ended, isRecording:', isRecording)
+                      e.preventDefault()
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
+                    onMouseDown={(e) => {
+                      console.log('Mouse down, isRecording:', isRecording)
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
                     className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors touch-manipulation ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                         : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
                     }`}
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
                   >
                     {isRecording ? (
                       <Square className="w-8 h-8 text-white" />
