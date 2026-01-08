@@ -317,7 +317,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
       if (dbError) throw dbError
 
       // Handle auto-approval if manual approval is disabled
-      if (!manualApproval && !manualApproval) {
+      if (!manualApproval && autoApprovalDelay > 0) {
         setTimeout(async () => {
           try {
             await supabase

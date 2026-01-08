@@ -82,50 +82,57 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
           .getPublicUrl(filePath)
         publicUrl = data.publicUrl
       } else {
-        console.log('Standard upload failed, trying signed upload...')
+        console.log('Standard upload failed, trying alternative methods...')
         
-        // Method 2: Try signed upload (bypasses RLS)
-        const { data: signedData, error: signedError } = await supabase.storage
+        // Method 2: Try with different file path (avoid conflicts)
+        const uniqueFilePath = `${eventId}/photos/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`
+        console.log('Trying with unique path:', uniqueFilePath)
+        
+        const { error: uniqueError } = await supabase.storage
           .from('wedding-media')
-          .createSignedUploadUrl(filePath)
+          .upload(uniqueFilePath, file)
         
-        if (signedError) {
-          console.error('Signed upload creation failed:', signedError)
-          uploadError = signedError
+        if (!uniqueError) {
+          console.log('Unique path upload successful')
+          const { data } = supabase.storage
+            .from('wedding-media')
+            .getPublicUrl(uniqueFilePath)
+          publicUrl = data.publicUrl
         } else {
-          console.log('Signed URL created, uploading...')
+          console.log('All storage methods failed, using base64 fallback...')
           
-          // Upload using signed URL
-          const uploadResponse = await fetch(signedData.signedUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': file.type,
-            },
-            body: file,
+          // Method 3: Convert to base64 and store directly in database (fallback)
+          const reader = new FileReader()
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const result = reader.result as string
+              resolve(result)
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(file)
           })
           
-          if (uploadResponse.ok) {
-            console.log('Signed upload successful')
-            const { data } = supabase.storage
-              .from('wedding-media')
-              .getPublicUrl(filePath)
-            publicUrl = data.publicUrl
-          } else {
-            console.error('Signed upload failed:', uploadResponse.statusText)
-            uploadError = new Error(`Signed upload failed: ${uploadResponse.statusText}`)
-          }
+          const base64Data = await base64Promise
+          publicUrl = base64Data
+          console.log('Using base64 fallback, data length:', base64Data.length)
         }
       }
 
       if (uploadError) {
         console.error('Storage upload error:', uploadError)
         // Provide mobile-specific error messages
-        if (uploadError.message?.includes('policy')) {
+        let errorMessage = 'Unknown upload error'
+        
+        if (uploadError && typeof uploadError === 'object' && 'message' in uploadError) {
+          errorMessage = String(uploadError.message)
+        }
+        
+        if (errorMessage?.includes('policy')) {
           throw new Error('Upload permissions error. Please try again or contact support.')
-        } else if (uploadError.message?.includes('size')) {
+        } else if (errorMessage?.includes('size')) {
           throw new Error('File too large. Please choose a smaller file.')
         } else {
-          throw uploadError
+          throw new Error(`Upload failed: ${errorMessage}`)
         }
       }
       
@@ -158,8 +165,10 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
       
       console.log('Database save successful')
 
-      // Handle auto-approval if manual approval is disabled
-      if (!manualApproval && !manualApproval) {
+      // Handle delayed auto-approval if manual approval is disabled
+      // Only run this if we want delayed approval instead of immediate approval
+      if (!manualApproval && autoApprovalDelay > 0) {
+        console.log(`Setting up delayed auto-approval in ${autoApprovalDelay} seconds...`)
         setTimeout(async () => {
           try {
             await supabase
