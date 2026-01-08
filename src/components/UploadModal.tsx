@@ -123,8 +123,8 @@ export default function UploadModal({ eventId, onClose, onSuccess, moderationEna
         // Provide mobile-specific error messages
         let errorMessage = 'Unknown upload error'
         
-        if (uploadError && typeof uploadError === 'object' && 'message' in uploadError) {
-          errorMessage = String(uploadError.message)
+        if (uploadError && typeof uploadError === 'object' && uploadError !== null && 'message' in uploadError) {
+          errorMessage = String((uploadError as any).message)
         }
         
         if (errorMessage?.includes('policy')) {
