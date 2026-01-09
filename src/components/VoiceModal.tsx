@@ -20,11 +20,20 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
   const [guestName, setGuestName] = useState('')
   const [recordingTime, setRecordingTime] = useState(0)
   const [mobileError, setMobileError] = useState<string | null>(null)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Helper to add debug logs
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    const logMessage = `[${timestamp}] ${message}`
+    console.log(logMessage)
+    setDebugLogs(prev => [...prev.slice(-4), logMessage]) // Keep last 5 logs
+  }
 
   // Check if MediaRecorder is supported
   const [isMediaRecorderSupported, setIsMediaRecorderSupported] = useState(false)
@@ -42,39 +51,70 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
 
   // Check if MediaRecorder is supported on component mount
   useEffect(() => {
-    console.log('Checking MediaRecorder support on mobile...')
-    console.log('MediaRecorder available:', typeof MediaRecorder !== 'undefined')
+    addDebugLog('=== DEVICE DETECTION ===')
+    addDebugLog(`User Agent: ${navigator.userAgent}`)
+    addDebugLog(`Is iOS: ${/iPad|iPhone|iPod/.test(navigator.userAgent)}`)
+    addDebugLog(`Is Safari: ${/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)}`)
+    
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+    
+    // Show iOS-specific warning
+    if (isIOS && isSafari) {
+      addDebugLog('iOS Safari detected - showing compatibility warning')
+      setMobileError('⚠️ iOS Safari may have recording issues. Try using Chrome, Firefox, or the mobile app for best results.')
+    }
     
     if (typeof MediaRecorder === 'undefined') {
-      console.error('MediaRecorder is undefined')
+      addDebugLog('MediaRecorder is undefined')
       setIsMediaRecorderSupported(false)
       setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
       return
     }
     
-    // Check webm support but be more permissive for mobile
-    const webmSupported = MediaRecorder.isTypeSupported('audio/webm')
-    const mp4Supported = MediaRecorder.isTypeSupported('audio/mp4')
-    console.log('WebM supported:', webmSupported)
-    console.log('MP4 supported:', mp4Supported)
-    
-    if (!webmSupported && !mp4Supported) {
-      console.error('No audio formats supported')
-      setIsMediaRecorderSupported(false)
-      setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
-      return
+    // iOS Safari has specific MediaRecorder limitations
+    if (isIOS && isSafari) {
+      addDebugLog('iOS Safari detected - checking MediaRecorder support...')
+      // iOS Safari has limited MediaRecorder support
+      const webmSupported = MediaRecorder.isTypeSupported('audio/webm')
+      const mp4Supported = MediaRecorder.isTypeSupported('audio/mp4')
+      
+      addDebugLog(`iOS WebM supported: ${webmSupported}`)
+      addDebugLog(`iOS MP4 supported: ${mp4Supported}`)
+      
+      if (!mp4Supported) {
+        addDebugLog('iOS Safari does not support MediaRecorder properly')
+        setIsMediaRecorderSupported(false)
+        setMobileError('❌ Voice recording not supported on this iOS version. Please update iOS or use a different browser.')
+        return
+      }
+    } else {
+      // Check webm support but be more permissive for mobile
+      const webmSupported = MediaRecorder.isTypeSupported('audio/webm')
+      const mp4Supported = MediaRecorder.isTypeSupported('audio/mp4')
+      addDebugLog(`WebM supported: ${webmSupported}`)
+      addDebugLog(`MP4 supported: ${mp4Supported}`)
+      
+      if (!webmSupported && !mp4Supported) {
+        addDebugLog('No audio formats supported')
+        setIsMediaRecorderSupported(false)
+        setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
+        return
+      }
     }
     
-    console.log('MediaRecorder is supported')
+    addDebugLog('MediaRecorder is supported')
     setIsMediaRecorderSupported(true)
   }, [])
 
   const startRecording = async () => {
-    console.log('=== START RECORDING DEBUG ===')
-    console.log('User Agent:', navigator.userAgent)
-    console.log('isMediaRecorderSupported:', isMediaRecorderSupported)
-    console.log('Current isRecording state:', isRecording)
-    console.log('MediaRecorder available:', typeof MediaRecorder !== 'undefined')
+    addDebugLog('=== START RECORDING DEBUG ===')
+    addDebugLog(`User Agent: ${navigator.userAgent}`)
+    addDebugLog(`isMediaRecorderSupported: ${isMediaRecorderSupported}`)
+    addDebugLog(`Current isRecording state: ${isRecording}`)
+    addDebugLog(`MediaRecorder available: ${typeof MediaRecorder !== 'undefined'}`)
+    addDebugLog(`HTTPS protocol: ${window.location.protocol === 'https:'}`)
+    addDebugLog(`Secure context: ${window.isSecureContext}`)
     
     // Reset any previous errors
     setMobileError(null)
@@ -86,15 +126,32 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
     }
     
     if (!isMediaRecorderSupported) {
-      console.error('MediaRecorder not supported')
+      addDebugLog('MediaRecorder not supported')
       setMobileError('Voice recording is not supported on this device. Please try on a desktop computer.')
       return
     }
     
+    // Check for secure context (required for getUserMedia)
+    if (!window.isSecureContext) {
+      addDebugLog('Not in secure context')
+      setMobileError('Voice recording requires a secure connection (HTTPS). Please use https://')
+      return
+    }
+    
     try {
-      console.log('Requesting microphone access...')
-      // Request microphone access with mobile-specific constraints
-      const constraints = {
+      addDebugLog('Requesting microphone access...')
+      
+      // iOS-specific constraints
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      const constraints = isIOS ? {
+        audio: {
+          echoCancellation: false, // iOS doesn't support this well
+          noiseSuppression: false, // iOS doesn't support this well
+          autoGainControl: false, // iOS doesn't support this well
+          sampleRate: 44100
+        },
+        video: false
+      } : {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -104,43 +161,65 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
         video: false
       }
       
+      addDebugLog(`Using constraints: ${JSON.stringify(constraints)}`)
+      
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not available on this device')
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
-      console.log('Microphone access granted')
-      console.log('Stream active:', stream.active)
-      console.log('Audio tracks:', stream.getAudioTracks().length)
+      addDebugLog('Microphone access granted')
+      addDebugLog(`Stream active: ${stream.active}`)
+      addDebugLog(`Audio tracks: ${stream.getAudioTracks().length}`)
+      
+      if (!stream.active || stream.getAudioTracks().length === 0) {
+        throw new Error('Microphone stream is not active')
+      }
       
       // Check if MediaRecorder is supported
       if (typeof MediaRecorder === 'undefined') {
         throw new Error('MediaRecorder is not supported on this device')
       }
       
-      // Try different audio formats for mobile compatibility
+      // iOS-specific format handling
       let mimeType = 'audio/webm'
       let fileExtension = 'webm'
       
-      if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        console.log('WebM not supported, trying MP4...')
+      if (isIOS) {
+        // iOS prefers MP4 format
         if (MediaRecorder.isTypeSupported('audio/mp4')) {
           mimeType = 'audio/mp4'
           fileExtension = 'm4a'
-        } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-          mimeType = 'audio/ogg'
-          fileExtension = 'ogg'
         } else {
-          console.log('No specific format supported, using default')
-          // Try without specifying mimeType
-          mimeType = ''
+          addDebugLog('iOS does not support any audio format')
+          throw new Error('iOS does not support audio recording in this browser')
+        }
+      } else {
+        // Non-iOS devices
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+          addDebugLog('WebM not supported, trying MP4...')
+          if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4'
+            fileExtension = 'm4a'
+          } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+            mimeType = 'audio/ogg'
+            fileExtension = 'ogg'
+          } else {
+            addDebugLog('No specific format supported, using default')
+            mimeType = ''
+          }
         }
       }
       
-      console.log('Using mimeType:', mimeType || 'default')
+      addDebugLog(`Using mimeType: ${mimeType || 'default'}`)
       
-      // Create MediaRecorder with mobile-friendly options
+      // Create MediaRecorder with iOS-friendly options
       const options = mimeType ? { mimeType } : {}
       const mediaRecorder = new MediaRecorder(stream, options)
       
-      console.log('MediaRecorder created:', mediaRecorder)
-      console.log('MediaRecorder state:', mediaRecorder.state)
+      addDebugLog('MediaRecorder created')
+      addDebugLog(`MediaRecorder state: ${mediaRecorder.state}`)
       
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
@@ -402,13 +481,50 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                     {formatTime(recordingTime)}
                   </div>
 
+                  {/* Debug Info */}
+                  <div className="text-xs text-gray-500 mb-2">
+                    <div>Supported: {isMediaRecorderSupported ? 'Yes' : 'No'}</div>
+                    <div>Recording: {isRecording ? 'Yes' : 'No'}</div>
+                    <div>HTTPS: {window.location.protocol === 'https:' ? 'Yes' : 'No'}</div>
+                  </div>
+
+                  {/* Debug Logs */}
+                  <div className="text-xs bg-gray-100 p-2 rounded mb-2 max-h-32 overflow-y-auto">
+                    <div className="font-bold mb-1">Debug Logs:</div>
+                    {debugLogs.map((log, index) => (
+                      <div key={index} className="text-gray-700">{log}</div>
+                    ))}
+                  </div>
+
+                  {/* Test Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addDebugLog('=== SIMPLE TEST CLICK ===')
+                      alert('Button click works!')
+                    }}
+                    className="mx-auto w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center mb-4"
+                  >
+                    TEST
+                  </button>
+
                   {/* Recording Button */}
-                  <div 
+                  <button
+                    type="button"
                     onClick={(e) => {
                       e.preventDefault()
-                      e.stopPropagation()
-                      console.log('=== BUTTON CLICK ===')
-                      console.log('isRecording:', isRecording)
+                      addDebugLog('=== BUTTON CLICK ===')
+                      addDebugLog(`isRecording: ${isRecording}`)
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault()
+                      addDebugLog('=== TOUCH START ===')
+                      addDebugLog(`isRecording: ${isRecording}`)
                       if (isRecording) {
                         stopRecording()
                       } else {
@@ -417,26 +533,11 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                     }}
                     onTouchEnd={(e) => {
                       e.preventDefault()
-                      e.stopPropagation()
-                      console.log('=== TOUCH END ===')
-                      console.log('isRecording:', isRecording)
-                      if (isRecording) {
-                        stopRecording()
-                      } else {
-                        startRecording()
-                      }
+                      addDebugLog('=== TOUCH END ===')
+                      addDebugLog(`isRecording: ${isRecording}`)
+                      // Don't do anything on touch end to avoid double triggers
                     }}
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      console.log('=== MOUSE DOWN ===')
-                      console.log('isRecording:', isRecording)
-                      if (isRecording) {
-                        stopRecording()
-                      } else {
-                        startRecording()
-                      }
-                    }}
-                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${
+                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                         : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
@@ -445,7 +546,12 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                       WebkitTapHighlightColor: 'transparent',
                       WebkitUserSelect: 'none',
                       userSelect: 'none',
-                      touchAction: 'manipulation'
+                      touchAction: 'manipulation',
+                      cursor: 'pointer',
+                      WebkitAppearance: 'none',
+                      appearance: 'none',
+                      border: 'none',
+                      outline: 'none'
                     }}
                   >
                     {isRecording ? (
@@ -453,7 +559,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                     ) : (
                       <Mic className="w-8 h-8 text-white" />
                     )}
-                  </div>
+                  </button>
 
                   <p className="text-sm text-gray-600">
                     {isRecording ? 'Recording... Tap to stop' : 'Tap to start recording'}
