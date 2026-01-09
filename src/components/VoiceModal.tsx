@@ -70,8 +70,11 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
   }, [])
 
   const startRecording = async () => {
-    console.log('startRecording called, isMediaRecorderSupported:', isMediaRecorderSupported)
+    console.log('=== START RECORDING DEBUG ===')
+    console.log('User Agent:', navigator.userAgent)
+    console.log('isMediaRecorderSupported:', isMediaRecorderSupported)
     console.log('Current isRecording state:', isRecording)
+    console.log('MediaRecorder available:', typeof MediaRecorder !== 'undefined')
     
     // Reset any previous errors
     setMobileError(null)
@@ -79,6 +82,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
     // Clear any existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current)
+      timerRef.current = null
     }
     
     if (!isMediaRecorderSupported) {
@@ -88,137 +92,97 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
     }
     
     try {
-      // Request microphone access first
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true,
+      console.log('Requesting microphone access...')
+      // Request microphone access with mobile-specific constraints
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        },
         video: false
-      })
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      console.log('Microphone access granted')
+      console.log('Stream active:', stream.active)
+      console.log('Audio tracks:', stream.getAudioTracks().length)
       
       // Check if MediaRecorder is supported
       if (typeof MediaRecorder === 'undefined') {
         throw new Error('MediaRecorder is not supported on this device')
       }
       
-      // Check if audio/webm is supported
+      // Try different audio formats for mobile compatibility
+      let mimeType = 'audio/webm'
+      let fileExtension = 'webm'
+      
       if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        // Try fallback to audio/mp4
-        const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm'
-        const mediaRecorder = new MediaRecorder(stream, { mimeType })
-        
-        mediaRecorderRef.current = mediaRecorder
-        audioChunksRef.current = []
-        
-        mediaRecorder.ondataavailable = (event) => {
-          audioChunksRef.current.push(event.data)
+        console.log('WebM not supported, trying MP4...')
+        if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4'
+          fileExtension = 'm4a'
+        } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+          mimeType = 'audio/ogg'
+          fileExtension = 'ogg'
+        } else {
+          console.log('No specific format supported, using default')
+          // Try without specifying mimeType
+          mimeType = ''
         }
-        
-        mediaRecorder.onstop = async () => {
-          // Clear timer when recording stops
-          if (timerRef.current) {
-            clearInterval(timerRef.current)
-          }
-          
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-          const audioURL = URL.createObjectURL(audioBlob)
-          setAudioURL(audioURL)
-          setIsRecording(false)
-          setRecordingTime(0)
-          
-          // Upload to Supabase
-          const fileName = `voice-${Date.now()}.${mimeType === 'audio/mp4' ? 'm4a' : 'webm'}`
-          const filePath = `${eventId}/voices/${fileName}`
-          
-          try {
-            const { error: uploadError } = await supabase.storage
-              .from('wedding-media')
-              .upload(filePath, audioBlob)
-            
-            if (uploadError) throw uploadError
-            
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-              .from('wedding-media')
-              .getPublicUrl(filePath)
-            
-            // Save to database
-            const { error: dbError } = await supabase
-              .from('submissions')
-              .insert({
-                event_id: eventId,
-                type: 'voice',
-                content_url: publicUrl,
-                guest_name: guestName.trim() || null,
-                approved: manualApproval ? false : true
-              })
-            
-            if (dbError) throw dbError
-            
-            // Handle auto-approval if manual approval is disabled
-            if (!manualApproval) {
-              setTimeout(async () => {
-                try {
-                  await supabase
-                    .from('submissions')
-                    .update({ approved: true })
-                    .eq('event_id', eventId)
-                    .eq('content_url', publicUrl)
-                  
-                  console.log('Auto-approved voice after', autoApprovalDelay, 'seconds')
-                } catch (error) {
-                  console.error('Auto-approval failed:', error)
-                }
-              }, autoApprovalDelay * 1000)
-            }
-            
-            onSuccess()
-            onClose()
-          } catch (error: any) {
-            console.error('Recording error:', error)
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-            setMobileError(`Recording failed: ${errorMessage}. Please check microphone permissions.`)
-          }
-        }
-        
-        // Start recording
-        mediaRecorder.start()
-        setIsRecording(true)
-        
-        // Start timer (only once, with null check)
-        if (!timerRef.current) {
-          timerRef.current = setInterval(() => {
-            setRecordingTime(prev => prev + 1)
-          }, 1000)
-        }
-        
-        return
       }
       
-      const mediaRecorder = new MediaRecorder(stream)
+      console.log('Using mimeType:', mimeType || 'default')
+      
+      // Create MediaRecorder with mobile-friendly options
+      const options = mimeType ? { mimeType } : {}
+      const mediaRecorder = new MediaRecorder(stream, options)
+      
+      console.log('MediaRecorder created:', mediaRecorder)
+      console.log('MediaRecorder state:', mediaRecorder.state)
       
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
       
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
+        console.log('Data available, blob size:', event.data.size)
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
       }
       
       mediaRecorder.onstop = async () => {
+        console.log('Recording stopped, processing audio...')
         // Clear timer when recording stops
         if (timerRef.current) {
           clearInterval(timerRef.current)
+          timerRef.current = null
         }
         
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop())
+        
+        const audioBlob = new Blob(audioChunksRef.current, { 
+          type: mimeType || 'audio/webm' 
+        })
+        console.log('Audio blob created, size:', audioBlob.size)
+        
+        if (audioBlob.size === 0) {
+          throw new Error('Recording failed - no audio data captured')
+        }
+        
         const audioURL = URL.createObjectURL(audioBlob)
         setAudioURL(audioURL)
         setIsRecording(false)
         setRecordingTime(0)
         
         // Upload to Supabase
-        const fileName = `voice-${Date.now()}.webm`
+        const fileName = `voice-${Date.now()}.${fileExtension}`
         const filePath = `${eventId}/voices/${fileName}`
         
         try {
+          console.log('Starting upload to:', filePath)
           const { error: uploadError } = await supabase.storage
             .from('wedding-media')
             .upload(filePath, audioBlob)
@@ -244,7 +208,7 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
           if (dbError) throw dbError
           
           // Handle auto-approval if manual approval is disabled
-          if (!manualApproval) {
+          if (!manualApproval && autoApprovalDelay > 0) {
             setTimeout(async () => {
               try {
                 await supabase
@@ -263,14 +227,21 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
           onSuccess()
           onClose()
         } catch (error: any) {
-          console.error('Recording error:', error)
+          console.error('Upload error:', error)
           const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-          setMobileError(`Recording failed: ${errorMessage}. Please check microphone permissions.`)
+          setMobileError(`Upload failed: ${errorMessage}. Please try again.`)
         }
       }
       
-      // Start recording
-      mediaRecorder.start()
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event)
+        setMobileError('Recording error occurred. Please try again.')
+      }
+      
+      // Start recording with mobile-friendly timeslice
+      const timeslice = navigator.userAgent.includes('Mobile') ? 1000 : undefined
+      mediaRecorder.start(timeslice)
+      console.log('Recording started with timeslice:', timeslice)
       setIsRecording(true)
       
       // Start timer (only once, with null check)
@@ -280,10 +251,20 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
         }, 1000)
       }
       
-    } catch (error) {
-      console.error('Microphone access error:', error)
+    } catch (error: any) {
+      console.error('Recording error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setMobileError(`Microphone access denied: ${errorMessage}. Please allow microphone access.`)
+      
+      // Provide more specific error messages for mobile
+      if (errorMessage.includes('Permission denied')) {
+        setMobileError('Microphone permission denied. Please allow microphone access in your browser settings.')
+      } else if (errorMessage.includes('not supported')) {
+        setMobileError('Voice recording is not supported on this device/browser.')
+      } else if (errorMessage.includes('secure')) {
+        setMobileError('Voice recording requires a secure connection (HTTPS).')
+      } else {
+        setMobileError(`Recording failed: ${errorMessage}. Please try again.`)
+      }
     }
   }
 
@@ -426,29 +407,46 @@ export default function VoiceModal({ eventId, onClose, onSuccess, manualApproval
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      console.log('Div clicked, isRecording:', isRecording)
+                      console.log('=== BUTTON CLICK ===')
+                      console.log('isRecording:', isRecording)
                       if (isRecording) {
                         stopRecording()
                       } else {
                         startRecording()
                       }
                     }}
-                    onTouchStart={(e) => {
+                    onTouchEnd={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      console.log('Div touch start, isRecording:', isRecording)
+                      console.log('=== TOUCH END ===')
+                      console.log('isRecording:', isRecording)
                       if (isRecording) {
                         stopRecording()
                       } else {
                         startRecording()
                       }
                     }}
-                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      console.log('=== MOUSE DOWN ===')
+                      console.log('isRecording:', isRecording)
+                      if (isRecording) {
+                        stopRecording()
+                      } else {
+                        startRecording()
+                      }
+                    }}
+                    className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${
                       isRecording 
                         ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                         : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'
                     }`}
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    style={{ 
+                      WebkitTapHighlightColor: 'transparent',
+                      WebkitUserSelect: 'none',
+                      userSelect: 'none',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     {isRecording ? (
                       <Square className="w-8 h-8 text-white" />

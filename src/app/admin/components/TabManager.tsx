@@ -195,7 +195,7 @@ export default function TabManager({
                     )}
                     
                     {submission.message_text && (
-                      <p className="text-gray-700 mb-2">{submission.message_text}</p>
+                      <p className="text-gray-700 mb-2" style={{ wordBreak: 'break-all' }}>{submission.message_text}</p>
                     )}
                     
                     {submission.content_url && (
