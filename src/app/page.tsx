@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -27,12 +29,12 @@ export default function HomePage() {
             <p className="text-gray-600 mb-4">
               Manage your wedding events and moderate guest submissions.
             </p>
-            <a 
+            <Link
               href="/admin" 
               className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
             >
               Go to Admin Dashboard →
-            </a>
+            </Link>
           </div>
         </div>
 

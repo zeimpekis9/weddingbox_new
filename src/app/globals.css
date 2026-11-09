@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Georgia:wght@400;700&family=Baskerville:wght@400;700&family=Times+New+Roman:wght@400;700&family=Arial:wght@400;700&family=Helvetica:wght@400;700&family=Verdana:wght@400;700&family=Trebuchet+MS:wght@400;700&family=Palatino:wght@400;700&family=Garamond:wght@400;700&family=Caslon:wght@400;700&family=Amanda+Black:wght@400;700');
 
 @layer base {
   body {
