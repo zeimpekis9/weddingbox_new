@@ -12,9 +12,12 @@
     "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1164.0",
+    "@aws-sdk/s3-request-presigner": "3.1164.0",
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/supabase-js": "^2.38.5",
     "clsx": "^2.0.0",
+    "file-type": "22.3.0",
     "lucide-react": "0.577.0",
     "next": "16.4.5",
     "pg": "8.23.1",

@@ -34,7 +34,8 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
   session.searchParams.set('options', '-c role=wedding_api')
   const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '34619'], {
     env: { ...process.env, WEDDING_DATABASE_URL: session.href, WEDDING_APP_ORIGIN: origin,
-      WEDDING_ADMIN_MFA_KEY: key.toString('hex'), NEXT_TELEMETRY_DISABLED: '1' },
+      WEDDING_ADMIN_MFA_KEY: key.toString('hex'), NEXT_TELEMETRY_DISABLED: '1',
+      R2_ACCOUNT_ID: '', R2_BUCKET: '', R2_JURISDICTION: '', R2_ACCESS_KEY_ID: '', R2_SECRET_ACCESS_KEY: '' },
     stdio: 'ignore', windowsHide: true,
   })
   try {
@@ -69,6 +70,44 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     const events = await list(cookie)
     assert.equal(events.status, 200)
     assert.deepEqual((await events.json()).events.map(item => item.id), [event])
+    const createLink = eventId => fetch(`${origin}/api/admin/events/${eventId}/guest-links`, {
+      method: 'POST', headers: { Origin: origin, cookie },
+    })
+    assert.equal((await createLink(otherEvent)).status, 403)
+    const linkResponse = await createLink(event)
+    assert.equal(linkResponse.status, 201)
+    const link = await linkResponse.json()
+    const exchange = eventId => fetch(`${origin}/api/events/${eventId}/access`, {
+      method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link: link.token }),
+    })
+    assert.equal((await exchange(otherEvent)).status, 403)
+    const grant = await exchange(event)
+    assert.equal(grant.status, 200)
+    const guest = grant.headers.get('set-cookie').split(';')[0]
+    const file = { requestId: randomUUID(), filename: 'test.jpg', type: 'image/jpeg', bytes: 100 }
+    const init = (eventId, request = file) => fetch(`${origin}/api/events/${eventId}/uploads`, {
+      method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    })
+    assert.equal((await init(otherEvent)).status, 403)
+    assert.equal((await init(event)).status, 503)
+    assert.equal((await init(event)).status, 503)
+    assert.equal((await init(event, { ...file, bytes: 200 })).status, 409)
+    const pending = await client.query('SELECT id,state FROM wedding.upload_sessions WHERE event_id=$1', [event])
+    assert.equal(pending.rowCount, 1)
+    assert.equal(pending.rows[0].state, 'pending')
+    const receipt = await fetch(`${origin}/api/events/${event}/uploads/${pending.rows[0].id}`, {
+      method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'complete' }),
+    })
+    assert.equal(receipt.status, 503)
+    assert.equal((await client.query('SELECT 1 FROM wedding.media WHERE event_id=$1', [event])).rowCount, 0)
+    assert.equal((await fetch(`${origin}/api/admin/events/${event}/guest-links`, {
+      method: 'DELETE', headers: { Origin: origin, cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: link.id }),
+    })).status, 200)
+    assert.equal((await init(event)).status, 403)
     assert.equal((await fetch(`${origin}/api/admin/session`, {
       method: 'DELETE', headers: { Origin: origin, cookie },
     })).status, 200)
@@ -76,6 +115,9 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
   } finally {
     child.kill()
     try {
+      await client.query('DELETE FROM wedding.upload_sessions WHERE event_id=$1', [event])
+      await client.query('DELETE FROM wedding.guest_grants WHERE event_id=$1', [event])
+      await client.query('DELETE FROM wedding.guest_links WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.admin_sessions WHERE user_id=$1', [actor])
       await client.query('DELETE FROM wedding.event_members WHERE user_id=$1', [actor])
       await client.query('DELETE FROM wedding.users WHERE id=$1', [actor])
