@@ -1,0 +1,22 @@
+# Feature audit matrix
+
+Source evidence is linked in the [project audit](PROJECT_AUDIT.md) and [Supabase map](SUPABASE_DEPENDENCY_AUDIT.md). “None” under coverage means no tracked functional tests. Readiness values use the requested classifications.
+
+| Feature | Frontend | Backend | Database/storage | Security | Coverage | Production readiness | Missing functionality | Priority |
+|---|---|---|---|---|---|---|---|---|
+| Anonymous event access | Slug route, share and clipboard | Direct public queries | Event UUID and unique slug | No scoped, revocable capability | None | PARTIALLY IMPLEMENTED | QR downloads and print assets, separate gallery access, privacy copy, upload-first picker | P0 / print P1 |
+| Mobile UI and branding | Responsive classes, cover, colors, fonts, tabs | Direct event/settings update | Overlapping SQL additions | Public cover and broad auth policies | None | IMPLEMENTED BUT UNVERIFIED | Device, accessibility, reduced-motion and Greek/English verification | P0 / advanced P1 |
+| Photo and video | One file, optional name, alert errors | Browser SDK write, then row insert | Public bucket or embedded data URL | No signature check or trustworthy limits | None | PARTIALLY IMPLEMENTED | Batch/progress, retry/cancel, idempotency, multipart and durable verification | P0 |
+| Gallery and original download | Feed, filters by tab, viewer/video/audio, link download | Browser select and subscriptions | Approved flag and raw URLs | Broad policy variants and eventless stream | None | PARTIALLY IMPLEMENTED | Private delivery, thumbnail jobs, pagination, favorites, authorized originals | P0 / filters P1 |
+| Text guestbook | Optional name and text | Direct insert and client timer | Submissions rows | Guest controls approval, no spam controls | None | PARTIALLY IMPLEMENTED | Server moderation, limits, export and scoped read | P0 / export P1 |
+| Voice guestbook | Microphone capture and playback | Two browser write paths | Public voices objects | No server duration/content validation | None | PARTIALLY IMPLEMENTED | Duration enforcement, browser regression, moderation and export | P1 |
+| Live feed | Client subscription | Supabase INSERT and event UPDATE | Publication unknown | Missing event filter on submissions | None | PARTIALLY IMPLEMENTED | Approved-only scoped refresh, dedupe, reconnect | P0 |
+| Ceremony slideshow and live guestbook | Tabs only | None dedicated | Feed rows reusable | No display-scoped access | None | NOT IMPLEMENTED | Fullscreen modes, controls, cache, QR and offline recovery | P0 |
+| Admin login and roles | Password form and user check | Supabase Auth | Provider accounts unknown | No owner/moderator membership or enforced MFA | None | PARTIALLY IMPLEMENTED | Independent secure sessions, MFA, event authorization, audit | P0 |
+| Admin configuration | Event CRUD, cover, settings, approval and tabs | Direct multi-step mutations | Three app tables | Unscoped auth | None | PARTIALLY IMPLEMENTED | Atomic writes, roles, windows, gallery policies, QR and screen config | P0 / advanced P1 |
+| Media/message moderation | Preview, toggle, delete | Direct row updates | One approved boolean | No event membership or durable audit | None | PARTIALLY IMPLEMENTED | Distinct hidden/rejected/deleted states, bulk actions and cleanup | P0 |
+| Admin dashboard | Event list and submission management | No metrics service | No metrics/job schema | No restricted operational API | None | PARTIALLY IMPLEMENTED | Counts, failure, storage, queue, login and backup health | P0 / advanced P1 |
+| Export and retention | README claim, single-file viewer download only | None | No export jobs | No expiring archive delivery | None | NOT IMPLEMENTED | ZIP64, manifest, export progress, lifecycle and retention | P1 |
+| Deployment and recovery | No operator UI | Vercel build config only | No restore artifacts | No verified live security posture | None | PARTIALLY IMPLEMENTED | Compose, monitoring, backups, incident modes and capacity gate | P0 |
+| Event isolation | Event selector and slugs | Some frontend query filters | UUID and event FKs | No storage or server membership boundary | None | PARTIALLY IMPLEMENTED | All event IDs enforced in APIs, jobs, media and DB constraints | P0 |
+| Commercial features | None | None | No billing schema | — | None | NOT IMPLEMENTED | Deferred public registration, subscriptions, billing and advanced analytics | P2 / deferred |
