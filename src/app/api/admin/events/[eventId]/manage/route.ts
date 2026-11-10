@@ -4,6 +4,7 @@ import { uuid } from '@/lib/server/guest-access'
 import { eventConfig, eventProfile } from '@/lib/server/guest-content'
 import { json, sameOrigin, smallJson } from '@/lib/server/http'
 import { r2 } from '@/lib/server/r2'
+import { readR2Config } from '@/lib/server/r2-config'
 
 type Context = RouteContext<'/api/admin/events/[eventId]/manage'>
 const membership = 'SELECT id,title,role FROM wedding.admin_events($1) WHERE id=$2'
@@ -17,15 +18,20 @@ export async function GET(request: Request, context: Context) {
     const db = database()
     const { rows: [event] } = await db.query(membership, values)
     if (!event) return json({ error: 'Event unavailable' }, 404)
-    const mediaId = new URL(request.url).searchParams.get('media')
+    const params = new URL(request.url).searchParams
+    const mediaId = params.get('media')
     if (mediaId) {
       if (!uuid.test(mediaId)) return json({ error: 'Invalid media' }, 400)
       const { rows: [media] } = await db.query(`
         SELECT object_key FROM wedding.media WHERE id=$3 AND event_id IN (SELECT id FROM wedding.admin_events($1) WHERE id=$2)
       `, [...values, mediaId])
-      return media ? json({ url: await r2().signedGet(media.object_key) }) : json({ error: 'Media unavailable' }, 404)
+      if (!media) return json({ error: 'Media unavailable' }, 404)
+      const url = await r2().signedGet(media.object_key)
+      return params.get('open') === '1'
+        ? new Response(null, { status: 303, headers: { Location: url, 'Cache-Control': 'no-store' } })
+        : json({ url })
     }
-    const [media, messages, counts, logs, settings, profile] = await Promise.all([
+    const [media, messages, counts, logs, settings, profile, operations] = await Promise.all([
       db.query(`SELECT id,filename,content_type,moderation,created_at FROM wedding.media
         WHERE event_id IN (SELECT id FROM wedding.admin_events($1) WHERE id=$2)
         ORDER BY created_at DESC,id DESC LIMIT 50`, values),
@@ -41,8 +47,25 @@ export async function GET(request: Request, context: Context) {
         ORDER BY created_at DESC LIMIT 20`, values),
       eventConfig(eventId),
       eventProfile(eventId),
+      db.query(`
+        WITH allowed AS (SELECT id FROM wedding.admin_events($1) WHERE id=$2),
+        uploads AS (
+          SELECT count(*) FILTER (WHERE state='pending' AND expires_at > now())::int AS pending_uploads,
+            count(*) FILTER (WHERE state='failed')::int AS failed_uploads
+          FROM wedding.upload_sessions WHERE event_id IN (SELECT id FROM allowed)
+        ), jobs AS (
+          SELECT count(*) FILTER (WHERE state IN ('queued','running'))::int AS queued_jobs,
+            count(*) FILTER (WHERE state='failed')::int AS failed_jobs
+          FROM wedding.background_jobs WHERE event_id IN (SELECT id FROM allowed)
+        )
+        SELECT * FROM uploads CROSS JOIN jobs
+      `, values),
     ])
-    return json({ event, settings, profile, stats: counts.rows[0], media: media.rows, messages: messages.rows, logs: logs.rows })
+    let storageConfigured = false
+    try { storageConfigured = Boolean(readR2Config()) } catch { /* Configuration errors remain server-side. */ }
+    return json({ event, settings, profile, stats: counts.rows[0], media: media.rows, messages: messages.rows, logs: logs.rows,
+      operations: { ...operations.rows[0], database_ready: true, storage_configured: storageConfigured,
+        upload_only: process.env.WEDDING_UPLOAD_ONLY === '1' } })
   } catch {
     return json({ error: 'Management unavailable' }, 503)
   }

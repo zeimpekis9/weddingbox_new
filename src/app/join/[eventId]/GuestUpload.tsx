@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { cancelTransfer, fingerprint, transfer } from '@/lib/client/upload'
-import GuestContent from './GuestContent'
+import dynamic from 'next/dynamic'
+import { cancelTransfer, fingerprint, transfer, uploadType } from '@/lib/client/upload'
+const GuestContent = dynamic(() => import('./GuestContent'))
 
 const words = {
   el: {
@@ -11,6 +12,7 @@ const words = {
     loading: 'Έλεγχος συνδέσμου…', denied: 'Ο σύνδεσμος δεν είναι διαθέσιμος. Σαρώστε ξανά τον κωδικό QR.',
     queued: 'Σε αναμονή', sending: 'Αποστολή', done: 'Παραλήφθηκε', failed: 'Η αποστολή διακόπηκε',
     cancelled: 'Η αποστολή σταμάτησε', privacy: 'Οι διοργανωτές μπορούν να δουν τα αρχεία που στέλνετε.',
+    connection: 'Η σύνδεση διακόπηκε. Δοκιμάστε ξανά.', disabled: 'Οι αποστολές φωτογραφιών και βίντεο είναι κλειστές.',
     resume: 'Για συνέχιση μετά την επαναφόρτωση, επιλέξτε ξανά τα ίδια αρχεία.',
   },
   en: {
@@ -19,6 +21,7 @@ const words = {
     loading: 'Checking your link…', denied: 'This link is unavailable. Scan the QR code again.',
     queued: 'Waiting', sending: 'Uploading', done: 'Received', failed: 'Upload interrupted',
     cancelled: 'Upload stopped', privacy: 'The event organizers can see the files you send.',
+    connection: 'Could not connect. Try again.', disabled: 'Photo and video uploads are closed.',
     resume: 'To resume after reloading, select the same files again.',
   },
 }
@@ -49,12 +52,14 @@ function saveUpload(key: string, upload: StoredUpload | null) {
 
 export default function GuestUpload({ eventId }: { eventId: string }) {
   const [language, setLanguage] = useState<'el' | 'en'>('el')
-  const [access, setAccess] = useState<'loading' | 'ready' | 'denied'>('loading')
+  const [access, setAccess] = useState<'loading' | 'ready' | 'denied' | 'connection'>('loading')
+  const [attempt, setAttempt] = useState(0)
   const [jobs, setJobs] = useState<Job[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [working, setWorking] = useState(false)
   const busy = useRef(false)
   const controllers = useRef(new Map<string, AbortController>())
+  const queued = useRef<Job[]>([])
   const text = words[language]
 
   useEffect(() => {
@@ -64,17 +69,17 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ link }), signal: controller.signal,
     }).then(async response => {
-      if (!response.ok) return setAccess('denied')
+      if (!response.ok) return setAccess(response.status === 403 ? 'denied' : 'connection')
       const data = await response.json()
       if (controller.signal.aborted) return
       if (link) window.history.replaceState(null, '', window.location.pathname)
       setSettings(data.settings ?? null)
       setAccess('ready')
     }).catch(() => {
-      if (!controller.signal.aborted) setAccess('denied')
+      if (!controller.signal.aborted) setAccess('connection')
     })
     return () => controller.abort()
-  }, [eventId])
+  }, [eventId, attempt])
 
   async function processJob(job: Job) {
     const controller = controllers.current.get(job.key)
@@ -86,7 +91,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
     update({ state: 'sending', progress: 0 })
     try {
       const hash = await fingerprint(job.file, controller.signal)
-      storageKey = `wedding-upload:${eventId}:${hash}:${encodeURIComponent(job.file.name)}:${job.file.type}`
+      storageKey = `wedding-upload:${eventId}:${hash}:${encodeURIComponent(job.file.name)}:${uploadType(job.file)}`
       upload = readUpload(storageKey) ?? { requestId: crypto.randomUUID() }
       saveUpload(storageKey, upload)
       await transfer(eventId, job.file, upload.requestId, controller.signal,
@@ -113,7 +118,11 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   }
 
   async function run(batch: Job[]) {
-    if (busy.current || !batch.length) return
+    if (!batch.length) return
+    if (busy.current) {
+      queued.current.push(...batch)
+      return
+    }
     busy.current = true
     setWorking(true)
     for (const job of batch) controllers.current.set(job.key, new AbortController())
@@ -124,12 +133,14 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
       }))
     } finally {
       busy.current = false
-      setWorking(false)
+      const nextBatch = queued.current.splice(0)
+      if (nextBatch.length) void run(nextBatch)
+      else setWorking(false)
     }
   }
 
   function add(files: ArrayLike<File> | null) {
-    if (!files || busy.current) return
+    if (!files) return
     const batch = Array.from(files).slice(0, 100).map(file =>
       ({ key: crypto.randomUUID(), file, state: 'queued' as const, progress: 0 }))
     setJobs(current => [...current.filter(job => job.state !== 'done'), ...batch])
@@ -137,15 +148,22 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   }
 
   return (
-    <main lang={language} className="mx-auto max-w-xl space-y-5 px-5 py-8">
+    <main lang={language} className="mx-auto max-w-2xl space-y-4 px-4 py-3 sm:px-6 sm:py-8">
       <div className="flex justify-end">
-        <button type="button" aria-label="Ελληνικά / English" className="underline"
+        <button type="button" aria-label="Ελληνικά / English" className="px-2 underline"
           onClick={() => setLanguage(language === 'el' ? 'en' : 'el')}>{language === 'el' ? 'English' : 'Ελληνικά'}</button>
       </div>
-      <h1 className="text-3xl">{text.title}</h1>
-      {settings?.title && <p className="text-xl" style={{ color: settings.primary_color }}>{settings.title}</p>}
+      <h1 className="text-3xl leading-tight sm:text-4xl">{text.title}</h1>
+      {settings?.title && <p className="border-s-4 ps-3 font-display text-xl"
+        style={{ borderColor: settings.primary_color }}>{settings.title}</p>}
       {settings?.event_date && <time dateTime={settings.event_date}>{settings.event_date}</time>}
-      {access !== 'ready' ? <p role="status">{text[access]}</p> : (
+      {access !== 'ready' ? <div className="card space-y-2">
+        <p role="status">{text[access]}</p>
+        {access === 'connection' && <button className="btn-secondary" onClick={() => {
+          setAccess('loading')
+          setAttempt(value => value + 1)
+        }}>{text.retry}</button>}
+      </div> : (
         <>
           {settings?.uploads_enabled !== false && <label className="btn-primary block cursor-pointer text-center focus-within:outline">
             {text.choose}
@@ -155,16 +173,17 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
                 event.target.value = ''
               }} />
           </label>}
-          <p>{text.ready} {text.privacy}</p>
+          <p className="text-sm">{settings?.uploads_enabled === false ? text.disabled : `${text.ready} ${text.privacy}`}</p>
           {settings?.welcome_message && <p>{settings.welcome_message}</p>}
-          <p className="text-sm">{text.resume}</p>
+          {settings?.uploads_enabled !== false && <p className="text-sm">{text.resume}</p>}
           {jobs.length > 0 && <p role="status">{text.done} {jobs.filter(job => job.state === 'done').length} / {jobs.length}</p>}
           <ul className="space-y-3">
             {jobs.map(job => (
-              <li key={job.key} className="rounded border p-3">
+              <li key={job.key} className="card space-y-1">
                 <p className="break-all">{job.file.name}</p>
-                <p role="status">{text[job.state]}{job.state === 'sending' ? ` · ${job.progress}%` : ''}</p>
-                {job.state === 'sending' && <progress className="w-full" value={job.progress} max={100} />}
+                <p role={job.state === 'sending' ? undefined : 'status'}>{text[job.state]}{job.state === 'sending' ? ` · ${job.progress}%` : ''}</p>
+                {job.state === 'sending' && <progress aria-label={`${text.sending}: ${job.file.name}`}
+                  className="w-full accent-wedding-800" value={job.progress} max={100} />}
                 {job.state === 'sending' && <button type="button" onClick={() => controllers.current.get(job.key)?.abort()}>{text.cancel}</button>}
                 {(job.state === 'failed' || job.state === 'cancelled') && (
                   <button type="button" disabled={working} onClick={() => void run([job])}>{text.retry}</button>
@@ -172,7 +191,8 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
               </li>
             ))}
           </ul>
-          {settings && <GuestContent eventId={eventId} settings={settings} language={language}
+          {settings && (settings.gallery_enabled || settings.messages_enabled || settings.voice_enabled) &&
+            <GuestContent eventId={eventId} settings={settings} language={language}
             addVoice={file => add([file])} busy={working} />}
         </>
       )}

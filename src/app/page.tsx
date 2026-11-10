@@ -2,10 +2,10 @@ import Link from 'next/link'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center max-w-md mx-auto px-4">
+    <main className="mx-auto flex min-h-[90dvh] max-w-xl items-center justify-center px-4 py-8 text-center">
+      <div className="w-full">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="mb-4 text-3xl sm:text-5xl">
             Wedding Guest Memories
           </h1>
           <p className="text-lg text-gray-600 mb-8">
@@ -14,7 +14,7 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">For Guests</h2>
             <p className="text-gray-600 mb-4">
               Visit your wedding event page to share memories with the happy couple.
@@ -24,14 +24,14 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">For Couples</h2>
             <p className="text-gray-600 mb-4">
               Manage your wedding events and moderate guest submissions.
             </p>
             <Link
               href="/admin" 
-              className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+              className="btn-primary inline-flex items-center"
             >
               Go to Admin Dashboard →
             </Link>
@@ -42,6 +42,6 @@ export default function HomePage() {
           <p>Built with ❤️ for happy couples everywhere</p>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

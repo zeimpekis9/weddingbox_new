@@ -1,4 +1,7 @@
 import './globals.css'
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = { viewportFit: 'cover', themeColor: '#fdf8f3' }
 
 export const metadata = {
   title: 'Wedding Guest Memories',

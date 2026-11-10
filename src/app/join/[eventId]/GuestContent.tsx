@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import MediaDialog from '@/components/MediaDialog'
 
 type Media = { id: string; filename: string; content_type: string; thumbnail?: string }
 type Message = { id: string; message_text: string }
@@ -18,6 +19,8 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
   const [view, setView] = useState<{ url: string; item: Media } | null>(null)
   const [notice, setNotice] = useState('')
   const [recording, setRecording] = useState(false)
+  const [galleryLoading, setGalleryLoading] = useState(false)
+  const [posting, setPosting] = useState(false)
   const recorder = useRef<MediaRecorder | null>(null)
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(false)
@@ -33,6 +36,8 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
   }, [])
 
   async function gallery(next?: string) {
+    setGalleryLoading(true)
+    setNotice('')
     try {
       const [response, book] = await Promise.all([
         fetch(`${base}/gallery${next ? `?cursor=${next}` : ''}`),
@@ -46,6 +51,8 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
       setOpen(true)
     } catch {
       setNotice(el ? 'Η συλλογή δεν είναι διαθέσιμη.' : 'Gallery unavailable.')
+    } finally {
+      setGalleryLoading(false)
     }
   }
 
@@ -64,6 +71,8 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
     const form = event.currentTarget
     const message = String(new FormData(form).get('message') ?? '').trim()
     if (!message) return
+    setPosting(true)
+    setNotice('')
     if (messageRequest.current?.message !== message) messageRequest.current = { message, id: crypto.randomUUID() }
     try {
       const response = await fetch(`${base}/guestbook`, {
@@ -76,6 +85,8 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
       setNotice(el ? 'Το μήνυμα παραλήφθηκε.' : 'Message received.')
     } catch {
       setNotice(el ? 'Το μήνυμα δεν εστάλη.' : 'Message could not be sent.')
+    } finally {
+      setPosting(false)
     }
   }
 
@@ -115,12 +126,14 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
   }
 
   return (
-    <section className="space-y-4 border-t pt-4">
+    <section className="card space-y-4" aria-label={el ? 'Ευχές και συλλογή' : 'Guestbook and gallery'}>
       {settings.messages_enabled && <form className="space-y-2" onSubmit={postMessage}>
         <label className="block">{el ? 'Μήνυμα ευχών' : 'Guestbook message'}
           <textarea className="input-field block w-full" name="message" maxLength={1000} required />
         </label>
-        <button className="underline">{el ? 'Αποστολή μηνύματος' : 'Send message'}</button>
+        <button className="btn-secondary" disabled={posting}>
+          {posting ? (el ? 'Αποστολή…' : 'Sending…') : el ? 'Αποστολή μηνύματος' : 'Send message'}
+        </button>
       </form>}
       {settings.voice_enabled && (recording ?
         <button type="button" className="underline" onClick={() => recorder.current?.stop()}>
@@ -130,33 +143,33 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
         </button>)}
       {settings.gallery_enabled && (
         <div>
-          <button type="button" className="underline" onClick={() => open ? setOpen(false) : void gallery()}>
+          <button type="button" className="underline" aria-expanded={open} disabled={galleryLoading}
+            onClick={() => open ? setOpen(false) : void gallery()}>
             {el ? 'Συλλογή αναμνήσεων' : 'Browse gallery'}
           </button>
           {open && <>
-            <ul className="grid grid-cols-2 gap-2">
-              {media.map(item => <li key={item.id}><button type="button" className="break-all underline"
-                onClick={() => void viewMedia(item)}>
+            {media.length === 0 && <p>{el ? 'Δεν υπάρχουν ακόμη εγκεκριμένα αρχεία.' : 'No approved media yet.'}</p>}
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {media.map(item => <li key={item.id} className="min-w-0"><button type="button" className="w-full text-left text-sm underline"
+                onClick={event => {
+                  event.currentTarget.focus({ preventScroll: true })
+                  void viewMedia(item)
+                }}>
                 {item.thumbnail && <img src={item.thumbnail} alt="" loading="lazy" className="h-28 w-full rounded object-cover" />}
                 {item.filename}
               </button></li>)}
             </ul>
-            {cursor && <button type="button" className="underline" onClick={() => void gallery(cursor)}>
+            {cursor && <button type="button" className="underline" disabled={galleryLoading} onClick={() => void gallery(cursor)}>
               {el ? 'Περισσότερα' : 'Load more'}
             </button>}
             <ul>{messages.map(message => <li key={message.id}>{message.message_text}</li>)}</ul>
           </>}
         </div>
       )}
-      {view && <div role="dialog" aria-modal="true" className="modal-overlay">
-        <div className="modal-content space-y-4 p-5">
-          <button type="button" className="underline" onClick={() => setView(null)}>{el ? 'Κλείσιμο' : 'Close'}</button>
-          {view.item.content_type.startsWith('image/') ? <img src={view.url} alt={view.item.filename} /> :
-            view.item.content_type.startsWith('audio/') ? <audio src={view.url} controls /> :
-              <video src={view.url} controls />}
-          <a href={view.url} className="underline" target="_blank" rel="noreferrer">{el ? 'Πρωτότυπο' : 'Open original'}</a>
-        </div>
-      </div>}
+      {view && <MediaDialog key={view.item.id} url={view.url} type={view.item.content_type} title={view.item.filename}
+        originalHref={`${base}/gallery?media=${view.item.id}&open=1`}
+        closeLabel={el ? 'Κλείσιμο' : 'Close'} originalLabel={el ? 'Πρωτότυπο' : 'Open original'}
+        errorLabel={el ? 'Η προεπισκόπηση δεν είναι διαθέσιμη.' : 'Preview unavailable.'} onDismiss={() => setView(null)} />}
       {notice && <p role="status">{notice}</p>}
     </section>
   )

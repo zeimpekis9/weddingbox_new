@@ -142,7 +142,11 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.deepEqual((await readBook()).messages, [])
     const dashboard = await fetch(management(event), { headers: { cookie } })
     assert.equal(dashboard.status, 200)
-    const records = (await dashboard.json()).messages
+    const dashboardData = await dashboard.json()
+    assert.equal(dashboardData.operations.database_ready, true)
+    assert.equal(dashboardData.operations.storage_configured, false)
+    assert.equal(dashboardData.operations.failed_uploads, 0)
+    const records = dashboardData.messages
     assert.equal(records.length, 1)
     const moderation = { kind: 'message', id: records[0].id, state: 'approved' }
     assert.equal((await patch(otherEvent, moderation)).status, 404)

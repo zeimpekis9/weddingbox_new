@@ -20,7 +20,11 @@ export async function GET(request: Request, context: Context) {
       const { rows: [media] } = await database().query<{ object_key: string }>(`
         SELECT object_key FROM wedding.media WHERE event_id=$1 AND id=$2 AND moderation='approved'
       `, [eventId, id])
-      return media ? json({ url: await r2().signedGet(media.object_key) }) : json({ error: 'Media unavailable' }, 404)
+      if (!media) return json({ error: 'Media unavailable' }, 404)
+      const url = await r2().signedGet(media.object_key)
+      return params.get('open') === '1'
+        ? new Response(null, { status: 303, headers: { Location: url, 'Cache-Control': 'no-store' } })
+        : json({ url })
     }
     const { rows } = await database().query(`
       SELECT id, filename, content_type, created_at, thumbnail_key FROM wedding.media

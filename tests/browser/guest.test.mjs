@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import test from 'node:test'
-import { chromium } from 'playwright-core'
+import { chromium, devices, webkit } from 'playwright-core'
 
-const origin = 'http://127.0.0.1:34621'
+const engine = process.env.WEDDING_BROWSER === 'webkit' ? webkit : chromium
+const port = engine === webkit ? '34622' : '34621'
+const origin = `http://127.0.0.1:${port}`
 const event = '10000000-0000-0000-0000-000000000001'
 const link = 'a'.repeat(43)
 const payload = { name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255,216,255,219,0,0]) }
 
 test('guest, gallery, guestbook, admin and display workflows use only first-party requests', { timeout: 45000 }, async () => {
-  const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '34621'], {
+  const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', port], {
     env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
     stdio: ['ignore', 'ignore', 'inherit'], windowsHide: true,
   })
@@ -22,8 +24,9 @@ test('guest, gallery, guestbook, admin and display workflows use only first-part
       await new Promise(resolve => setTimeout(resolve, 200))
     }
     assert.equal(ready?.status, 200)
-    browser = await chromium.launch({ channel: 'chrome', headless: true })
-    const page = await browser.newPage({ viewport: { width: 390, height: 740 }, isMobile: true })
+    browser = await engine.launch(engine === chromium ? { channel: 'chrome', headless: true } : { headless: true })
+    const userAgent = devices[engine === webkit ? 'iPhone 13' : 'Pixel 7'].userAgent
+    const page = await browser.newPage({ viewport: { width: 390, height: 740 }, isMobile: true, hasTouch: true, userAgent })
     const foreignOrigins = new Set()
     await page.route('**/*', route => {
       const requestOrigin = new URL(route.request().url()).origin
@@ -32,6 +35,7 @@ test('guest, gallery, guestbook, admin and display workflows use only first-part
       return route.abort()
     })
     const requestIds = []
+    const requestedParts = []
     let allowReceipt = false
     await page.route('**/api/events/**', async route => {
       const request = route.request()
@@ -43,18 +47,31 @@ test('guest, gallery, guestbook, admin and display workflows use only first-part
       if (path.endsWith('/guestbook')) return route.fulfill({ json: request.method() === 'GET' ?
         { messages: [{ id: 'one', message_text: 'An approved message' }] } : { received: true } })
       if (path.endsWith('/uploads')) {
-        requestIds.push(request.postDataJSON().requestId)
+        const upload = request.postDataJSON()
+        requestIds.push(upload.requestId)
+        if (upload.filename === 'second-photo.jpg') assert.equal(upload.type, 'image/jpeg')
+        if (upload.type === 'video/mp4') return route.fulfill({ json: {
+          id: 'fixture-video', state: 'pending', mode: 'multipart', partSize: 4,
+        } })
         return route.fulfill({ json: { id: 'fixture', state: 'pending', mode: 'single',
           url: `${origin}/mock-storage`, headers: { 'If-None-Match': '*' } } })
       }
-      if (request.method() === 'GET') return route.fulfill({ json: { state: 'pending', active: true, staged: false } })
-      return allowReceipt ? route.fulfill({ json: { id: 'fixture', state: 'uploaded' } }) :
+      const id = path.split('/').at(-1)
+      if (request.method() === 'GET') return route.fulfill({ json: { state: 'pending', active: true, staged: false,
+        receivedParts: id === 'fixture-video' ? [1] : [] } })
+      const action = request.postDataJSON()
+      if (action.action === 'part') {
+        requestedParts.push(action.part)
+        return route.fulfill({ json: { url: `${origin}/mock-part` } })
+      }
+      return allowReceipt ? route.fulfill({ json: { id, state: 'uploaded' } }) :
         route.fulfill({ status: 409, json: { error: 'incomplete' } })
     })
     await page.route('**/mock-storage', async route => {
       assert.equal(route.request().headers()['if-none-match'], '*')
       await route.fulfill({ status: 200 })
     })
+    await page.route('**/mock-part', route => route.fulfill({ status: 200 }))
     await page.goto(`${origin}/join/${event}#${link}`)
     const selectEnglish = () => page.getByRole('button', { name: 'Ελληνικά / English' }).click()
     await selectEnglish()
@@ -69,6 +86,12 @@ test('guest, gallery, guestbook, admin and display workflows use only first-part
     await page.getByText('Received', { exact: true }).waitFor()
     assert.equal(requestIds.length, 2)
     assert.equal(requestIds[0], requestIds[1])
+    await page.locator('input[type=file]').setInputFiles([
+      { ...payload, name: 'second-photo.jpg', mimeType: '' },
+      { name: 'video.mp4', mimeType: 'video/mp4', buffer: Buffer.alloc(10, 1) },
+    ])
+    await page.getByText('Received 2 / 2', { exact: true }).waitFor()
+    assert.deepEqual(requestedParts, [2,3])
     await page.getByRole('button', { name: 'Browse gallery' }).click()
     await page.getByText('An approved message', { exact: true }).waitFor()
     await page.getByLabel('Guestbook message').fill('A new message')

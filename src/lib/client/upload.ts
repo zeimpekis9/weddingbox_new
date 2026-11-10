@@ -1,5 +1,3 @@
-import { sha256 } from '@noble/hashes/sha2.js'
-
 type Progress = (bytes: number) => void
 type ResponseData = {
   id?: string; state?: string; mode?: string; url?: string
@@ -11,8 +9,20 @@ class UploadError extends Error {
   constructor(readonly status: number, message: string) { super(message) }
 }
 
+const extensions: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+  heic: 'image/heic', heif: 'image/heif', mp4: 'video/mp4', mov: 'video/quicktime',
+}
+
+export function uploadType(file: File) {
+  if (file.type && file.type !== 'application/octet-stream') return file.type
+  const extension = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase()
+  return Object.prototype.hasOwnProperty.call(extensions, extension) ? extensions[extension] : file.type
+}
+
 async function request(url: string, signal: AbortSignal, body?: unknown): Promise<ResponseData> {
   for (let attempt = 0; ; attempt++) {
+    let retryAfter = 0
     try {
       const result = await fetch(url, {
         signal, method: body ? 'POST' : 'GET',
@@ -24,16 +34,27 @@ async function request(url: string, signal: AbortSignal, body?: unknown): Promis
       if (attempt >= 4 || ![202, 429, 502, 503, 504].includes(result.status)) {
         throw new UploadError(result.status, data.error || 'Upload unavailable')
       }
+      retryAfter = Math.min(Number(result.headers.get('Retry-After')) * 1000 || 0, 10000)
     } catch (error) {
       if (signal.aborted || attempt >= 4 || error instanceof UploadError) throw error
     }
-    await delay(attempt, signal)
+    await delay(attempt, signal, retryAfter)
   }
 }
 
-async function delay(attempt: number, signal: AbortSignal) {
-  await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt + Math.random() * 400))
+async function delay(attempt: number, signal: AbortSignal, minimum = 0) {
   signal.throwIfAborted()
+  await new Promise<void>((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort)
+      resolve()
+    }, Math.max(minimum, 500 * 2 ** attempt) + Math.random() * 400)
+    signal.addEventListener('abort', abort, { once: true })
+  })
 }
 
 function put(url: string, file: Blob, headers: Record<string, string>, signal: AbortSignal, progress: Progress) {
@@ -57,6 +78,7 @@ function put(url: string, file: Blob, headers: Record<string, string>, signal: A
 }
 
 export async function fingerprint(file: File, signal: AbortSignal) {
+  const { sha256 } = await import('@noble/hashes/sha2.js')
   const hash = sha256.create()
   for (let offset = 0; offset < file.size; offset += 1024 * 1024) {
     signal.throwIfAborted()
@@ -68,7 +90,7 @@ export async function fingerprint(file: File, signal: AbortSignal) {
 export async function transfer(eventId: string, file: File, requestId: string, signal: AbortSignal,
   progress: Progress, onSession: (id: string) => void) {
   const base = `/api/events/${eventId}/uploads`
-  const body = { requestId, filename: file.name, type: file.type, bytes: file.size }
+  const body = { requestId, filename: file.name, type: uploadType(file), bytes: file.size }
   let start: ResponseData
   for (let attempt = 0; ; attempt++) {
     start = await request(base, signal, body)
