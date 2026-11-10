@@ -15,4 +15,6 @@ Commit references identify the implementation under test. Milestone updates trav
 - [ ] M10 — Production readiness | BLOCKED | Linux image and seeded restore | Commit a1d61bc | Local build and restore PASS; staging validation NOT RUN | Needs isolated staging, live R2, independent backup and deployment approval
 - [x] M11 — Supabase runtime removal | PASS | PostgreSQL and R2 workflows are the default | Commit 500be58 | Zero-config Linux build and startup, types, lint, 13 unit tests, Chrome network check, PostgreSQL integration and restore PASS | Blockers none
 
+- [x] M12 — Responsive UI and release verification | PASS | Guest, owner, gallery and ceremony polish plus live R2 harness | Commit 2f2e452 | Build, types, lint, unit, PostgreSQL, seeded restore, Chrome and WebKit PASS | Physical devices, live R2, independent restore, capacity and deployment remain open. See TEST_RESULTS.md.
+
 Legacy data preservation is unconfirmed. Mark migration NOT REQUIRED only after the owner confirms that no irreplaceable records or media exist. Source inventory is optional and does not block development.
