@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
+import { backdropUrl, ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
 import { backgrounds, decorations, fonts, presets, shapes, themeConfig, type ThemeConfig } from '@/lib/theme.mjs'
+import CollageBuilder from './CollageBuilder'
 
 const colors = {
   canvas: 'Page background', surface: 'Card background', ink: 'Text',
@@ -17,6 +18,7 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
   const [draft, setDraft] = useState<ThemeConfig | null>(null)
   const [notice, setNotice] = useState('Loading theme studio…')
   const [busy, setBusy] = useState(false)
+  const [collagePreview, setCollagePreview] = useState<string | null>(null)
   const base = `/api/admin/events/${eventId}/theme`
 
   useEffect(() => {
@@ -64,11 +66,11 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
     }
   }
 
-  async function upload(kind: 'cover' | 'monogram', file?: File) {
-    if (!file) return
+  async function upload(kind: 'cover' | 'monogram', file?: File, collage = false) {
+    if (!file) return false
     if (file.size > 2 * 1024 * 1024) {
       setNotice('Artwork must be at most 2 MiB.')
-      return
+      return false
     }
     setBusy(true)
     setNotice('')
@@ -79,19 +81,24 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
       if (!response.ok) {
         const result = await response.json()
         setNotice(result.error ?? 'Could not upload artwork.')
-        return
+        return false
       }
       const { id } = await response.json()
-      setDraft(current => current && ({ ...current, [kind]: id }))
+      setDraft(current => current && ({ ...current, [kind]: id,
+        background: collage && !current.background.startsWith('collage-') ? 'collage-soft' : current.background }))
       setNotice('Artwork added to this preview. Save or publish to keep the change.')
+      return true
     } catch {
       setNotice('Could not upload artwork. Try again.')
+      return false
     } finally {
       setBusy(false)
     }
   }
 
   const valid = Boolean(themeConfig(draft))
+  const previewTheme = draft && collagePreview && !draft.background.startsWith('collage-')
+    ? { ...draft, background: 'collage-soft' } : draft
   return <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">
     <nav className="flex flex-wrap gap-4" aria-label="Theme studio navigation">
       <Link className="underline" prefetch={false} href={`/admin/local/${eventId}`}>Event dashboard</Link>
@@ -138,7 +145,8 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
               ['background', 'Background texture', backgrounds],
             ] as const).map(([key, label, values]) => <label key={key}>{label}
               <select className={inputClass} value={draft[key]} onChange={event => setDraft({ ...draft, [key]: event.target.value })}>
-                {values.map(value => <option key={value}>{value}</option>)}
+                {values.map(value => <option key={value} value={value}>{value === 'collage-soft' ? 'Collage · soft' :
+                  value === 'collage-bold' ? 'Collage · bold' : value}</option>)}
               </select>
             </label>)}
             <label>Decorations
@@ -172,15 +180,17 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
             {draft[kind] && <button className="btn-secondary" type="button" onClick={() => setDraft({ ...draft, [kind]: null })}>Remove {kind}</button>}
           </div>)}
         </section>
+        <CollageBuilder onPreview={setCollagePreview} onUse={file => upload('cover', file, true)} />
         {!valid && <p role="alert">Increase contrast between text, buttons, borders and their backgrounds before saving.</p>}
+        {collagePreview && <p>Use or clear the collage preview before saving the theme.</p>}
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={!valid} className="btn-secondary" onClick={() => void save(false)}>Save draft</button>
-          <button type="button" disabled={!valid} className="btn-primary" onClick={() => void save(true)}>Publish theme</button>
+          <button type="button" disabled={!valid || Boolean(collagePreview)} className="btn-secondary" onClick={() => void save(false)}>Save draft</button>
+          <button type="button" disabled={!valid || Boolean(collagePreview)} className="btn-primary" onClick={() => void save(true)}>Publish theme</button>
         </div>
       </fieldset>
-      <section className="theme-preview space-y-2 lg:sticky lg:top-4" aria-label="Live theme preview">
+      <section id="guest-theme-preview" className="theme-preview space-y-2 lg:sticky lg:top-4" aria-label="Live theme preview">
         <h2 className="text-xl">Guest preview</h2>
-        <WeddingTheme theme={draft}>
+        <WeddingTheme theme={previewTheme ?? draft} backdrop={collagePreview ?? backdropUrl(draft, eventId)}>
           <div className="space-y-4 rounded-lg border p-4 sm:p-6" aria-hidden="true">
             <div className="theme-name flex items-center gap-2 border-s-4 ps-3">
               <ThemeArtwork eventId={eventId} id={draft.monogram} kind="monogram" />
@@ -188,7 +198,10 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
             </div>
             <h3 className="text-3xl">Share your memories</h3>
             <div className="btn-primary text-center">Choose photos and videos</div>
-            <ThemeArtwork eventId={eventId} id={draft.cover} kind="cover" />
+            {collagePreview ?
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={collagePreview} className="theme-cover" alt="" /> :
+              <ThemeArtwork eventId={eventId} id={draft.cover} kind="cover" />}
             <div className="card">Guestbook and gallery</div>
           </div>
         </WeddingTheme>

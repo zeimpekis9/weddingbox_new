@@ -39,6 +39,8 @@ Apply `009_event_themes.sql` through the migration runner before enabling the st
 
 The studio accepts static JPEG, PNG and WebP artwork up to 2 MiB and 12 megapixels. It converts artwork to WebP and stores it under the event's private R2 theme prefix. Guests can open only currently published artwork through a scoped grant. Removing artwork from a theme removes its reference when published. It leaves the uploaded object in place for operational retention. An event can upload up to 80 theme assets.
 
+In **Photo collage background**, select up to 80 JPEG, PNG or WebP photos and compare **Even grid** and **Featured first photo** in the guest preview. Choose **Collage · soft** or **Collage · bold** for the backdrop. **Use collage in draft** uploads one rendered image and replaces the draft cover. The source photos stay on your device. Choose **Publish theme** to show the collage to guests.
+
 ## Build and verification
 
 - Run `npm run build`, `npm run typecheck`, `npm run lint` and `npm test`.

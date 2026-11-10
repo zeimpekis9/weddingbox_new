@@ -223,6 +223,26 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     await page.getByRole('link', { name: 'Open ceremony display' }).click()
     await page.getByRole('button', { name: 'Live messages' }).click()
     await page.getByText('Να ζήσετε! · Congratulations!', { exact: true }).waitFor({ timeout: 8000 })
+
+    await page.goto(`${origin}/admin/local/${eventId}/theme`)
+    await page.getByLabel('Collage photos').setInputFiles(Array.from({ length: 80 }, (_, index) => ({
+      name: `synthetic-${index}.jpg`, mimeType: 'image/jpeg', buffer: photo,
+    })))
+    await page.locator('.theme-preview .theme-backdrop[src^="blob:"]').waitFor()
+    const response = page.waitForResponse(response => new URL(response.url()).pathname === themePath + '/artwork')
+    await page.getByRole('button', { name: 'Use collage in draft' }).click()
+    const savedCollage = await response
+    assert.equal(savedCollage.status(), 201)
+    const { id: collageId } = await savedCollage.json()
+    assert.match(collageId, /^[a-f0-9-]{36}$/)
+    artworkKeys.push(`events/${eventId}/theme/${collageId}.webp`)
+    await page.getByRole('button', { name: 'Publish theme' }).click()
+    await page.getByText('Theme published.', { exact: true }).waitFor()
+    const collage = await call(`${root}/theme-assets/${collageId}`, guest)
+    status(collage, 303)
+    const collageBytes = await (await fetch(collage.headers.get('location'))).arrayBuffer()
+    const metadata = await sharp(Buffer.from(collageBytes)).metadata()
+    assert.deepEqual([metadata.format, metadata.width, metadata.height], ['webp', 1440, 1080])
   } finally {
     try {
       await browser?.close()

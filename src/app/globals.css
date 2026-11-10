@@ -102,6 +102,23 @@
 }
 
 .theme-content { position: relative; }
+.theme-backdrop {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: min(100%, 1100px);
+  object-fit: cover;
+  object-position: center top;
+  pointer-events: none;
+  mask-image: linear-gradient(black 65%, transparent);
+}
+[data-background="collage-soft"] > .theme-backdrop { opacity: .28; }
+[data-background="collage-bold"] > .theme-backdrop { opacity: .62; }
+.wedding-theme:has(> .theme-backdrop) > .theme-content { padding: .75rem; }
+.wedding-theme:has(> .theme-backdrop) > .theme-content > :first-child {
+  background: var(--theme-canvas);
+  border-radius: 1rem;
+}
 .wedding-theme :is(h1, h2, h3, .theme-heading) { font-family: var(--theme-heading); }
 .wedding-theme :is(.card, .input-field, .media-dialog, .btn-secondary) {
   background-color: var(--theme-surface);
@@ -138,6 +155,7 @@
 }
 @keyframes wedding-snow { to { transform: translateY(42px); } }
 .theme-cover { display: block; width: 100%; aspect-ratio: 8 / 3; object-fit: cover; border-radius: .875rem; }
+.wedding-theme[data-background^="collage-"] .theme-cover { height: auto; aspect-ratio: 4 / 3; object-fit: contain; }
 .theme-monogram { flex: none; width: 3rem; height: 3rem; object-fit: contain; }
 .theme-preview.wedding-theme, .theme-preview > .wedding-theme { min-block-size: 0; }
 .theme-stage {

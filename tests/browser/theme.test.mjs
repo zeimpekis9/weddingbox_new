@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import test from 'node:test'
 import { chromium, webkit } from 'playwright-core'
+import sharp from 'sharp'
 import { defaultTheme, presets } from '../../src/lib/theme.mjs'
 
 const engine = process.env.WEDDING_BROWSER === 'webkit' ? webkit : chromium
@@ -41,9 +42,22 @@ test('all six presets preview, save, publish and render on mobile and desktop', 
     for (const viewport of [{ width: 320, height: 700 }, { width: 1440, height: 900 }]) {
       let draft = { config: defaultTheme, revision: 0, publishedRevision: null }
       let published = defaultTheme
+      let artworkPosts = 0
+      const assetId = '10000000-0000-0000-0000-000000000009'
+      const photo = await sharp({ create: { width: 40, height: 30, channels: 3, background: '#567d54' } }).png().toBuffer()
       const context = await browser.newContext({ viewport, reducedMotion: 'reduce' })
       await context.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname
+        if (path.endsWith('/theme/artwork')) {
+          artworkPosts++
+          assert.equal(route.request().method(), 'POST')
+          assert.match(route.request().headers()['content-type'], /^image\/(webp|jpeg|png)$/)
+          // WebKit interception can omit Blob bodies from its request metadata.
+          const body = route.request().postDataBuffer()
+          if (body) assert.ok(body.length > 0 && body.length <= 2 * 1024 * 1024)
+          return route.fulfill({ status: 201, json: { id: assetId } })
+        }
+        if (path.endsWith('/theme-assets/' + assetId)) return route.fulfill({ contentType: 'image/png', body: photo })
         if (path.endsWith('/theme')) {
           if (route.request().method() === 'PUT') {
             const change = route.request().postDataJSON()
@@ -109,6 +123,29 @@ test('all six presets preview, save, publish and render on mobile and desktop', 
       await guest.getByRole('button', { name: 'Browse gallery' }).click()
       await guest.getByText('No approved media yet.').waitFor()
       await guest.getByLabel('Guestbook message').waitFor()
+      const photos = Array.from({ length: 80 }, (_, index) => ({ name: `photo-${index}.png`, mimeType: 'image/png', buffer: photo }))
+      const chooser = studio.getByLabel('Collage photos')
+      await chooser.setInputFiles(photos)
+      const preview = studio.locator('.theme-preview .theme-backdrop')
+      await preview.waitFor()
+      const first = await preview.getAttribute('src')
+      assert.match(first, /^blob:/)
+      await studio.getByLabel('Collage layout').selectOption('featured')
+      await studio.waitForFunction(source => {
+        const current = document.querySelector('.theme-preview .theme-backdrop')?.getAttribute('src')
+        return current?.startsWith('blob:') && current !== source
+      }, first)
+      assert.equal(artworkPosts, 0)
+      await studio.getByLabel('Background texture').selectOption('collage-bold')
+      await studio.getByRole('button', { name: 'Use collage in draft' }).click()
+      await studio.getByRole('button', { name: 'Publish theme' }).click()
+      await studio.getByText('Theme published.', { exact: true }).waitFor()
+      assert.equal(artworkPosts, 1)
+      assert.equal(published.cover, assetId)
+      assert.equal(published.background, 'collage-bold')
+      await guest.reload()
+      await guest.locator('[data-background="collage-bold"] .theme-backdrop').waitFor()
+      await noOverflow(guest)
       assert.deepEqual(errors, [])
       await context.close()
     }

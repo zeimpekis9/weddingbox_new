@@ -70,3 +70,8 @@ Use [the recovery and performance plan](PERFORMANCE_AND_RECOVERY_PLAN.md) for in
 ## Voice WebM
 
 - Reproduced Chrome's audio-only MediaRecorder output being identified as a WebM video container by the generic detector. The signature regression accepts a declared audio track and rejects video, mixed-track and truncated headers. A synthetic Chrome recording passed signed staging R2 upload and durable receipt verification, then appeared as pending audio in the demo database. The synthetic R2 objects were removed.
+
+## Photo collage background
+
+- Production build, TypeScript, lint and 19 unit tests passed. Chrome and WebKit previewed 80 synthetic photos at mobile and desktop widths, changed layouts locally, and verified zero artwork POSTs before using the collage and a single POST afterward.
+- The live Chrome/PostgreSQL/EU R2 integration rendered 80 synthetic photos, published the collage, downloaded the private guest-authorized asset, and verified a 1440×1080 WebP. The test removed its synthetic collage from R2.

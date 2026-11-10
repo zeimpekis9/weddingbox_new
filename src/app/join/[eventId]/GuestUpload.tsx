@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
+import { backdropUrl, ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
 import { defaultTheme, themeConfig } from '@/lib/theme.mjs'
 import { cancelTransfer, fingerprint, transfer, uploadType } from '@/lib/client/upload'
 const GuestContent = dynamic(() => import('./GuestContent'))
@@ -152,7 +152,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   }
 
   return (
-    <WeddingTheme theme={theme}>
+    <WeddingTheme theme={theme} backdrop={backdropUrl(theme, eventId)}>
     <main lang={language} className="mx-auto max-w-2xl space-y-4 px-4 py-3 sm:px-6 sm:py-8">
       <div className="flex justify-end">
         <button type="button" aria-label="Ελληνικά / English" className="px-2 underline"

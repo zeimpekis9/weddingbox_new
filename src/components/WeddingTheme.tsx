@@ -9,11 +9,22 @@ export function themeProps(theme: ThemeConfig) {
   }
 }
 
-export function WeddingTheme({ theme, children }: { theme: ThemeConfig; children: ReactNode }) {
+export function WeddingTheme({ theme, children, backdrop }: { theme: ThemeConfig; children: ReactNode; backdrop?: string }) {
   return <div className="wedding-theme" {...themeProps(theme)}>
+    {backdrop && <ThemeBackdrop src={backdrop} />}
     <ThemeDecoration theme={theme} />
     <div className="theme-content">{children}</div>
   </div>
+}
+
+function ThemeBackdrop({ src }: { src: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className="theme-backdrop" src={src} alt="" decoding="async" />
+}
+
+export function backdropUrl(theme: ThemeConfig, eventId: string) {
+  return theme.background.startsWith('collage-') && theme.cover
+    ? `/api/events/${eventId}/theme-assets/${theme.cover}` : undefined
 }
 
 function ThemeDecoration({ theme }: { theme: ThemeConfig }) {

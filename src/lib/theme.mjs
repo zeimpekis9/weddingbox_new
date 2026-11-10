@@ -8,7 +8,7 @@ export const fonts = Object.freeze({
   modern: 'system-ui, sans-serif',
 })
 export const shapes = Object.freeze({ soft: '.75rem', pill: '999px', square: '.2rem' })
-export const backgrounds = ['plain', 'paper', 'gradient']
+export const backgrounds = ['plain', 'paper', 'gradient', 'collage-soft', 'collage-bold']
 export const decorations = ['none', 'pine', 'floral', 'botanical', 'snow']
 
 /**
