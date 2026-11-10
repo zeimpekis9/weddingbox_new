@@ -8,7 +8,7 @@ Commit references identify the implementation under test. Milestone updates trav
 - [x] M3 — Cloudflare R2 verified uploads | PASS | Signed single and multipart transfer, scoped grants and verified receipts | Commit 6fce7b8 | Build, types, lint, mock storage and PostgreSQL HTTP integration PASS | Live R2 UNVERIFIED
 - [x] M4 — Guest upload experience | PASS | QR download, bilingual upload, bounded concurrency and resume | Commit ce9f3d7 | Build, types, lint, unit, Chrome with mocked storage and HTTP integration PASS | Live Safari and R2 UNVERIFIED
 - [x] M5 — Private gallery and guestbook | PASS | Scoped gallery, text and voice capture, approval filtering | Commit 44ab637 | Build, types, lint, unit, browser and PostgreSQL HTTP integration PASS | Live playback and browser microphone UNVERIFIED
-- [ ] M6 — Admin dashboard and moderation | TODO | Commit — | Tests NOT RUN | Blockers none
+- [x] M6 — Admin dashboard and moderation | PASS | Role-based event settings, statistics, previews and audit | Commit 5710745 | Build, types, lint, unit, browser and PostgreSQL moderation integration PASS | R2 preview and operator enrollment UNVERIFIED
 - [ ] M7 — Ceremony slideshow and live messages | TODO | Commit — | Tests NOT RUN | Blockers none
 - [ ] M8 — Backups, monitoring and recovery | TODO | Commit — | Tests NOT RUN | Independent destination pending
 - [ ] M9 — Performance and security testing | TODO | Commit — | Tests NOT RUN | Representative infrastructure pending
