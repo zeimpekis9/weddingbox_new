@@ -65,6 +65,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   const queued = useRef<Job[]>([])
   const text = words[language]
   const theme = themeConfig(settings?.theme) ?? defaultTheme
+  const backdrop = backdropUrl(theme, eventId)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -152,7 +153,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   }
 
   return (
-    <WeddingTheme theme={theme} backdrop={backdropUrl(theme, eventId)}>
+    <WeddingTheme theme={theme} backdrop={backdrop}>
     <main lang={language} className="mx-auto max-w-2xl space-y-4 px-4 py-3 sm:px-6 sm:py-8">
       <div className="flex justify-end">
         <button type="button" aria-label="Ελληνικά / English" className="px-2 underline"
@@ -183,7 +184,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
           </label>}
           <p className="text-sm">{settings?.uploads_enabled === false ? text.disabled : `${text.ready} ${text.privacy}`}</p>
           {settings?.welcome_message && <p>{settings.welcome_message}</p>}
-          <ThemeArtwork eventId={eventId} id={theme.cover} kind="cover" />
+          {!backdrop && <ThemeArtwork eventId={eventId} id={theme.cover} kind="cover" />}
           {settings?.uploads_enabled !== false && <p className="text-sm">{text.resume}</p>}
           {jobs.length > 0 && <p role="status">{text.done} {jobs.filter(job => job.state === 'done').length} / {jobs.length}</p>}
           <ul className="space-y-3">

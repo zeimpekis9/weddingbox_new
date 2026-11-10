@@ -99,6 +99,7 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
   const valid = Boolean(themeConfig(draft))
   const previewTheme = draft && collagePreview && !draft.background.startsWith('collage-')
     ? { ...draft, background: 'collage-soft' } : draft
+  const previewBackdrop = collagePreview ?? (draft ? backdropUrl(draft, eventId) : undefined)
   return <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">
     <nav className="flex flex-wrap gap-4" aria-label="Theme studio navigation">
       <Link className="underline" prefetch={false} href={`/admin/local/${eventId}`}>Event dashboard</Link>
@@ -190,7 +191,7 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
       </fieldset>
       <section id="guest-theme-preview" className="theme-preview space-y-2 lg:sticky lg:top-4" aria-label="Live theme preview">
         <h2 className="text-xl">Guest preview</h2>
-        <WeddingTheme theme={previewTheme ?? draft} backdrop={collagePreview ?? backdropUrl(draft, eventId)}>
+        <WeddingTheme theme={previewTheme ?? draft} backdrop={previewBackdrop}>
           <div className="space-y-4 rounded-lg border p-4 sm:p-6" aria-hidden="true">
             <div className="theme-name flex items-center gap-2 border-s-4 ps-3">
               <ThemeArtwork eventId={eventId} id={draft.monogram} kind="monogram" />
@@ -198,10 +199,7 @@ export default function ThemeStudio({ eventId }: { eventId: string }) {
             </div>
             <h3 className="text-3xl">Share your memories</h3>
             <div className="btn-primary text-center">Choose photos and videos</div>
-            {collagePreview ?
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={collagePreview} className="theme-cover" alt="" /> :
-              <ThemeArtwork eventId={eventId} id={draft.cover} kind="cover" />}
+            {!previewBackdrop && <ThemeArtwork eventId={eventId} id={draft.cover} kind="cover" />}
             <div className="card">Guestbook and gallery</div>
           </div>
         </WeddingTheme>

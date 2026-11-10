@@ -155,7 +155,6 @@
 }
 @keyframes wedding-snow { to { transform: translateY(42px); } }
 .theme-cover { display: block; width: 100%; aspect-ratio: 8 / 3; object-fit: cover; border-radius: .875rem; }
-.wedding-theme[data-background^="collage-"] .theme-cover { height: auto; aspect-ratio: 4 / 3; object-fit: contain; }
 .theme-monogram { flex: none; width: 3rem; height: 3rem; object-fit: contain; }
 .theme-preview.wedding-theme, .theme-preview > .wedding-theme { min-block-size: 0; }
 .theme-stage {
