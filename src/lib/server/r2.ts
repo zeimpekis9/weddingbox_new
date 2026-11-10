@@ -15,9 +15,9 @@ function configure() {
   const Bucket = config.bucket
   const sendOptions = () => ({ abortSignal: AbortSignal.timeout(15000) })
   return {
-    async signSingle(key: string, type: string, id: string) {
+    async signSingle(key: string, type: string) {
       return getSignedUrl(client, new PutObjectCommand({
-        Bucket, Key: key, ContentType: type, IfNoneMatch: '*', Metadata: { 'upload-id': id },
+        Bucket, Key: key, ContentType: type, IfNoneMatch: '*',
       }), { expiresIn: 300, signableHeaders: new Set(['content-type', 'if-none-match']) })
     },
     async create(key: string, type: string, id: string) {
@@ -71,9 +71,10 @@ function configure() {
       if (!result.Body) throw new Error('Object content unavailable')
       return result.Body.transformToByteArray()
     },
-    copy(source: string, target: string, etag: string) {
+    copy(source: string, target: string, etag: string, id: string, contentType: string) {
       return client.send(new CopyObjectCommand({
         Bucket, Key: target, CopySource: `${Bucket}/${source}`, CopySourceIfMatch: etag,
+        MetadataDirective: 'REPLACE', Metadata: { 'upload-id': id }, ContentType: contentType,
       }), sendOptions())
     },
     signedGet(key: string, filename?: 'wedding-event.zip') {

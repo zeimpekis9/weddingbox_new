@@ -1,6 +1,6 @@
 export function readR2Config(env: NodeJS.ProcessEnv = process.env) {
   if (typeof window !== 'undefined') throw new Error('R2 configuration is server-only')
-  const accountId = env.R2_ACCOUNT_ID?.trim()
+  const accountId = env.R2_ACCOUNT_ID?.trim().toLowerCase()
   const bucket = env.R2_BUCKET?.trim()
   const jurisdiction = env.R2_JURISDICTION?.trim()
   const accessKeyId = env.R2_ACCESS_KEY_ID?.trim()

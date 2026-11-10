@@ -90,7 +90,7 @@ export async function uploadInstructions(upload: Upload) {
   const storage = r2()
   if (!isMultipart(upload)) {
     return { id: upload.id, state: 'pending', mode: 'single',
-      url: await storage.signSingle(stageKey(upload), upload.content_type, upload.id),
+      url: await storage.signSingle(stageKey(upload), upload.content_type),
       headers: { 'Content-Type': upload.content_type, 'If-None-Match': '*' } }
   }
   if (!upload.provider_id) {

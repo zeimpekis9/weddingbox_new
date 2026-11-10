@@ -113,7 +113,10 @@ test('isolated staging R2 verifies receipts, resumed multipart, private original
       const url = signedUrl((await signed.json()).url)
       const anonymous = new URL(url)
       anonymous.search = ''
-      assert.ok([401,403,404].includes((await fetch(anonymous, { redirect: 'manual', signal: AbortSignal.timeout(10000) })).status))
+      const unsigned = await fetch(anonymous, { redirect: 'manual', signal: AbortSignal.timeout(10000) })
+      const argumentRejection = unsigned.status === 400 && /<Code>InvalidArgument<\/Code>/.test(await unsigned.text())
+      assert.ok([401,403,404].includes(unsigned.status) || argumentRejection, 'R2 must reject the unsigned object request')
+      await unsigned.body?.cancel().catch(() => {})
       const original = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30000) })
       assert.equal(original.status, 200)
       assert.equal(await checksum(original.body), await checksum(file.stream()))

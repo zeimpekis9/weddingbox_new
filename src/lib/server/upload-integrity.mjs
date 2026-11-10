@@ -39,10 +39,12 @@ export async function verifyOriginal(storage, object) {
       staged = await storage.head(stage)
     }
     if (!staged) return 'incomplete'
-    if (!verifiedHead(staged, id, bytes) ||
+    // Single PUTs are bound to the unique staging key by the signature and overwrite guard.
+    if (!staged.ETag || staged.ContentLength !== bytes || staged.ContentType !== contentType ||
+        (providerId && staged.Metadata?.['upload-id'] !== id) ||
         !await contentMatches(await storage.sniff(stage, staged.ETag), contentType)) return 'invalid'
-    await storage.copy(stage, original, staged.ETag)
+    await storage.copy(stage, original, staged.ETag, id, contentType)
     head = await storage.head(original)
   }
-  return verifiedHead(head, id, bytes) ? 'verified' : 'incomplete'
+  return verifiedHead(head, id, bytes) && head.ContentType === contentType ? 'verified' : 'incomplete'
 }

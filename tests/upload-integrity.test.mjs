@@ -27,8 +27,9 @@ test('checks content signatures independently of the reported MIME', async () =>
 
 test('only confirms the original after HEAD, including after a lost copy response', async () => {
   const fixture = { id: 'one', bytes: 6, contentType: 'image/jpeg', stage: 'stage', original: 'original' }
-  const head = { ETag: '"etag"', ContentLength: 6, Metadata: { 'upload-id': 'one' } }
-  const objects = new Map([['stage', head]])
+  const staged = { ETag: '"etag"', ContentLength: 6, ContentType: 'image/jpeg' }
+  const head = { ...staged, Metadata: { 'upload-id': 'one' } }
+  const objects = new Map([['stage', staged]])
   let copies = 0
   const store = {
     head: async key => objects.get(key),
@@ -36,7 +37,8 @@ test('only confirms the original after HEAD, including after a lost copy respons
     copy: async () => { copies++ },
   }
   assert.equal(await verifyOriginal(store, fixture), 'incomplete')
-  store.copy = async () => {
+  store.copy = async (source, target, etag, id, type) => {
+    assert.deepEqual([source, target, etag, id, type], ['stage', 'original', staged.ETag, fixture.id, fixture.contentType])
     copies++
     objects.set('original', head)
     throw new Error('response lost')
@@ -49,7 +51,7 @@ test('only confirms the original after HEAD, including after a lost copy respons
 test('recovers a completed multipart upload after the completion acknowledgement is lost', async () => {
   const fixture = { id: 'multi', bytes: partSize + 1, contentType: 'image/jpeg',
     stage: 'stage', original: 'original', providerId: 'provider' }
-  const head = { ETag: '"etag"', ContentLength: fixture.bytes, Metadata: { 'upload-id': fixture.id } }
+  const head = { ETag: '"etag"', ContentLength: fixture.bytes, ContentType: fixture.contentType, Metadata: { 'upload-id': fixture.id } }
   const objects = new Map()
   const parts = [{ PartNumber: 1, Size: partSize, ETag: 'first' }, { PartNumber: 2, Size: 1, ETag: 'last' }]
   let completions = 0

@@ -22,6 +22,12 @@ test('absent settings leave the inactive integration disabled', () => {
   assert.equal(readR2Config({ R2_ACCOUNT_ID: '', R2_BUCKET: '' }), null)
 })
 
+test('normalizes uppercase account IDs for the DNS endpoint', () => {
+  const accountId = 'A'.repeat(32)
+  const config = readR2Config({ ...env, R2_ACCOUNT_ID: accountId })
+  assert.equal(config.endpoint, `https://${accountId.toLowerCase()}.eu.r2.cloudflarestorage.com`)
+})
+
 test('rejects partial or invalid config without echoing values', () => {
   for (const overrides of [
     { R2_SECRET_ACCESS_KEY: '' },

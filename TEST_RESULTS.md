@@ -8,7 +8,8 @@
 | Local checks | PASS | Next.js production build, TypeScript, lint, 13 unit tests, PostgreSQL HTTP and SQL integration, seeded restore, and zero production dependency advisories. |
 | Browser checks | PASS | Chrome 157 and WebKit 27.2 passed workflow and responsive suites. Captured 144 screenshots across both engines. |
 | Physical device checks | NOT RUN | iOS Safari and Android Chrome on actual phones were unavailable. Local browser tests simulate touch, mobile user agents and viewport sizes. |
-| Live R2 | NOT RUN | Isolated HTTPS staging, private bucket, worker and synthetic media fixtures required. |
+| Live EU R2 from local app | PASS | Authenticated bucket access, Chrome signed JPEG upload, multipart MP4, retry and resume, verified receipts, byte integrity, isolation and fixture cleanup. |
+| HTTPS staging R2 and worker | NOT RUN | An isolated HTTPS app origin and staging worker were unavailable. Local CORS evidence applies to `http://localhost:3000`. |
 | Independent backup restore | NOT RUN | Independent encrypted destination and a matching PostgreSQL/R2 recovery point required. |
 | Representative 100/300/500 guests | NOT RUN | Isolated HTTPS deployment and live R2 required. Local bursts are smoke tests for rendering and authorization only. |
 | Production deployment approved | NOT APPROVED | Approval follows successful release verification. |
@@ -24,6 +25,14 @@
 The workflow suites cover a failed completion, reselecting the same file after reload, photo and video batch selection, skipping a received multipart chunk, and showing success only after the receipt. They also exercise written guestbook submission, gallery access, owner sign-in and sign-out, and retaining ceremony messages during a simulated outage.
 
 The final loopback run returned HTTP 200 for every request. Page bursts of 100, 300 and 500 had p95 latencies of 384, 842 and 1,482 ms. A 100-request guest bootstrap burst had p95 of 178 ms. These results do not measure concurrent live media transfers.
+
+## Live EU R2 evidence
+
+The production build ran on loopback with local PostgreSQL and the EU `weddingbox-staging` bucket. Authenticated `HeadBucket` returned HTTP 200. Both signed PUT preflights returned 204 with the matching local origin. Chrome uploaded the 718-byte synthetic JPEG, and R2 rejected an overwrite with 412. Signed requests uploaded the 35,651,584-byte synthetic MP4 in five parts. Retrying the first part and reinitializing preserved the part inventory and session ID.
+
+Completion before all bytes returned 409. Successful completion and replay returned the same receipt and one media record. Both originals matched R2 HEAD identity, size and MIME and the source SHA-256 after their staging objects were deleted. Unsigned S3 reads returned 400 `InvalidArgument`. Wrong-event reads and pre-approval gallery access returned 404. All four exact synthetic staging and original keys returned 404 after cleanup, and local fixture records were removed.
+
+Live testing found that R2 did not persist the upload identity carried in the single PUT query string. The app now validates the signed staging key's size, MIME and signature and sets the identity during the conditional server copy. It verifies the destination before issuing the receipt. The extra browser metadata header failed preflight, so the fix preserves the existing CORS headers and bucket policy. The regression suite passed 14 unit tests along with the build, TypeScript and lint checks.
 
 ## Repeat on isolated staging
 
