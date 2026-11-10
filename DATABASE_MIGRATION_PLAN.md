@@ -1,5 +1,9 @@
 # Database and media cutover plan
 
+The offline gate is `node scripts/migration/reconcile.mjs <source-manifest.json> <target-manifest.json>`. Each manifest contains an `events` array of event UUIDs and a `records` array. Records contain `id`, `eventId`, `type` and a SHA-256 of canonical metadata in `metadataSha256`. Photo, video, voice and cover records also contain `bytes` and `originalSha256`. The target includes its event-scoped original `key`. Generate both hashes independently from the source and destination bytes and keep manifests in restricted storage. The command reports aggregate mismatches and exits nonzero for discrepancies.
+
+The synthetic gate verifies matching manifests, missing records, metadata and content mismatches, and cross-event keys. The live inventory retry still failed DNS resolution. No live data import, production switch, or Supabase retirement has been executed.
+
 ## Legacy mapping to the local foundation
 
 Keep source UUIDs for events, settings and submissions. Preserve timestamps, text, guest names, branding and tab configuration. Validate legacy slugs against the target check and retain a redirect mapping if any change is approved. Reconcile null dates, timestamps, approval flags and settings before mapping; keep an exception journal rather than silently applying target defaults to existing values. Convert approved=true to approved and false to pending. Quarantine unknown approval states until reviewed. Map media URL or embedded data bytes to future event-owned media rows after validated copy; the foundation submission table intentionally has no storage URL column. Treat the cover URL column as a compatibility field until cover references migrate to media IDs. Provision event memberships only from an operator-approved owner mapping. No production rows or bytes were transferred in this phase.

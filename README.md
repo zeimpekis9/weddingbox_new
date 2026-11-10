@@ -1,5 +1,9 @@
 # Wedding Guest Memories
 
+The PostgreSQL and R2 version runs alongside the legacy interface during migration. See [delivery progress](PROGRESS.md), [local PostgreSQL setup](POSTGRESQL_SCHEMA.md), and [recovery and load tests](PERFORMANCE_AND_RECOVERY_PLAN.md). Use Node 24, Docker Compose, and Chrome for local verification. The new owner interface is at `/admin/local` and issues QR links for `/join/[eventId]`.
+
+Build the local Linux image with `docker build -t wedding-app-local:verify .`. The build step runs without external network access after the dependency install. The default legacy public configuration uses synthetic build values. Set actual legacy public build arguments only when rehearsing an approved live integration. Supply private database, R2 and MFA settings through the runtime secret store. The same image can run the worker with `node scripts/worker/run.mjs` and separate worker credentials.
+
 A beautiful wedding guest media microsite built with Next.js and Supabase. Allow guests to upload photos, videos, text messages, and voice notes using a single link - no authentication required for guests!
 
 ## Features

@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 
 const action = process.argv[2]
 const input = process.argv[3]
+const expectedEvent = process.argv[4]
 const compose = ['compose','--env-file','.env.compose.local','-f','compose.yml','-p','wedding-foundation','exec','-T','db']
 const role = 'wedding_migrator'
 const database = 'wedding_dev'
@@ -37,6 +38,12 @@ function restoreCheck(path) {
       [fd,'inherit','inherit'])
     command(['psql','-X','-v','ON_ERROR_STOP=1','-U',role,'-d',scratch,'-c',
       'SELECT name FROM wedding_migrations.history ORDER BY name; SELECT count(*) AS events FROM wedding.events;'], 'inherit')
+    if (expectedEvent) {
+      command(['psql','-X','-v','ON_ERROR_STOP=1','-U',role,'-d',scratch,'-c',
+        `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM wedding.events WHERE id='${expectedEvent}'::uuid)
+          THEN RAISE EXCEPTION 'Expected event was not restored'; END IF; END $$;`], 'inherit')
+      console.log('Expected event was restored.')
+    }
   } finally {
     closeSync(fd)
     if (created) command(['dropdb','--username',role,scratch], 'inherit')
@@ -45,7 +52,10 @@ function restoreCheck(path) {
 
 try {
   if (!input || !['dump','restore-check'].includes(action)) {
-    throw new Error('Usage: node scripts/db/backup.mjs dump|restore-check <archive-file>')
+    throw new Error('Usage: node scripts/db/backup.mjs dump|restore-check <archive-file> [expected-event-id]')
+  }
+  if (expectedEvent && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(expectedEvent)) {
+    throw new Error('Invalid expected event identifier')
   }
   if (action === 'dump') dump(resolve(input))
   else restoreCheck(resolve(input))
