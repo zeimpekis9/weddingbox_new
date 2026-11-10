@@ -17,5 +17,6 @@ Commit references identify the implementation under test. Milestone updates trav
 
 - [x] M12 — Responsive UI and release verification | PASS | Guest, owner, gallery and ceremony polish plus live R2 harness | Commit 2f2e452 | Build, types, lint, unit, PostgreSQL, seeded restore, Chrome and WebKit PASS | Physical devices, live R2, independent restore, capacity and deployment remain open. See TEST_RESULTS.md.
 - [x] M13 — Live EU R2 integration | PASS | Local app to EU staging bucket | Commit 6eab2f8 | Signed JPEG and multipart, CORS, integrity, retry, isolation and cleanup PASS | HTTPS staging and worker NOT RUN
+- [ ] M14 — Comprehensive pre-production drill | BLOCKED | Windows browser, R2, worker crash/ZIP, local PostgreSQL restart/restore and load smoke | App baseline d83c406 | Build, types, lint, unit, API, Chrome, WebKit and synthetic drills PASS | Restricted HTTPS, phones, independent restore and representative capacity NOT RUN
 
 Legacy data preservation is unconfirmed. Mark migration NOT REQUIRED only after the owner confirms that no irreplaceable records or media exist. Source inventory is optional and does not block development.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import pg from 'pg'
@@ -8,6 +8,8 @@ import { hashPassword, sealTotp } from '../../src/lib/server/admin-crypto.mjs'
 import { claimJob } from '../../scripts/worker/queue.mjs'
 
 const origin = 'http://127.0.0.1:34619'
+const soakSeconds = Number(process.env.WEDDING_LOCAL_SOAK_SECONDS ?? 0)
+assert.ok(Number.isInteger(soakSeconds) && soakSeconds >= 0 && soakSeconds <= 3600)
 const env = Object.fromEntries(readFileSync('.env.compose.local', 'utf8').split(/\r?\n/)
   .filter(line => /^WEDDING_LOCAL_DB_(PASSWORD|PORT)=/.test(line))
   .map(line => line.split(/=(.*)/s).slice(0, 2)))
@@ -23,9 +25,9 @@ function codeFor(secret) {
 }
 
 async function burst(label, count, request) {
-  const times = await Promise.all(Array.from({ length: count }, async () => {
+  const times = await Promise.all(Array.from({ length: count }, async (_, index) => {
     const started = performance.now()
-    const response = await request()
+    const response = await request(index)
     assert.equal(response.status, 200)
     await response.arrayBuffer()
     return performance.now() - started
@@ -35,7 +37,14 @@ async function burst(label, count, request) {
   console.log(JSON.stringify({ label, count, p50Ms: percentile(.50), p95Ms: percentile(.95), p99Ms: percentile(.99) }))
 }
 
-test('admin API authenticates with MFA and scopes, rejects replay, and revokes sessions', { timeout: 45000 }, async () => {
+function serverResources(pid) {
+  if (process.platform !== 'win32') return null
+  return JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-Command',
+    `Get-Process -Id ${pid} | Select-Object CPU,WorkingSet64,PrivateMemorySize64,HandleCount | ConvertTo-Json -Compress`],
+  { encoding: 'utf8', windowsHide: true }))
+}
+
+test('admin API authenticates with MFA and scopes, rejects replay, and revokes sessions', { timeout: 45000 + soakSeconds * 1000 }, async () => {
   const client = new pg.Client({ connectionString: dbUrl.href })
   const event = randomUUID()
   const otherEvent = randomUUID()
@@ -107,13 +116,25 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.equal(grant.headers.get('x-robots-tag'), 'noindex, nofollow')
     const guest = grant.headers.get('set-cookie').split(';')[0]
     if (process.env.WEDDING_LOCAL_BURST === '1') {
-      for (const size of [100,300,500]) {
+      for (const size of [50, 100, 300, 500]) {
         await burst('local guest page', size, () => fetch(`${origin}/join/${event}`))
       }
       await burst('local guest bootstrap', 100, () => fetch(`${origin}/api/events/${event}/access`, {
         method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
         body: JSON.stringify({ link: '' }),
       }))
+    }
+    if (soakSeconds > 0) {
+      const before = serverResources(child.pid)
+      const deadline = performance.now() + soakSeconds * 1000
+      let batches = 0
+      while (performance.now() < deadline) {
+        await burst('local guest soak', 20, index => fetch(`${origin}/${index % 2 ? 'join/' : ''}${event}`))
+        batches++
+        await new Promise(resolve => setTimeout(resolve, 4000))
+      }
+      console.log(JSON.stringify({ label: 'local guest soak total', requests: batches * 20, soakSeconds,
+        before, after: serverResources(child.pid) }))
     }
     const book = eventId => `${origin}/api/events/${eventId}/guestbook`
     const message = { requestId: randomUUID(), message: 'Χρόνια πολλά!' }
