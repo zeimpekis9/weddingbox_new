@@ -13,9 +13,11 @@ test('bootstrap requires the local opt-in, pending state and a valid password', 
 })
 
 test('replacement password and standard authenticator encoding', () => {
-  for (const password of ['admin', 'aaaaaaaaaaaaaaaa', 'sixteenlowercase']) {
+  for (const password of ['admin', 'a'.repeat(25), '🎉'.repeat(25)]) {
     assert.throws(() => assertReplacement(password))
   }
-  assert.doesNotThrow(() => assertReplacement('local-Demo-only!42'))
+  for (const password of ['simple', 'a'.repeat(24), '🎉'.repeat(24)]) {
+    assert.doesNotThrow(() => assertReplacement(password))
+  }
   assert.equal(base32(Buffer.from('foobar')), 'MZXW6YTBOI')
 })

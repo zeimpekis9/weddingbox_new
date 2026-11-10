@@ -29,7 +29,7 @@ For owner access, run the following in a separate interactive terminal:
 node --env-file=.env.local scripts/demo/local.mjs setup --local-only
 ```
 
-Use `admin` / `admin` in that terminal once. Choose a strong replacement password and enroll a TOTP authenticator. Then sign in at [local owner login](http://localhost:3000/admin) as `admin@demo.invalid` with the replacement password and a current code. The pending bootstrap hash is cleared after enrollment. Keep the generated `.env.demo.local` state private so the local instance retains its MFA key and invitation on restart.
+Use `admin` / `admin` in that terminal once. Choose a replacement password of 6–24 characters and enroll a TOTP authenticator. Then sign in at [local owner login](http://localhost:3000/admin) as `admin@demo.invalid` with the replacement password and a current code. The pending bootstrap hash is cleared after enrollment. Keep the generated `.env.demo.local` state private so the local instance retains its MFA key and invitation on restart.
 
 ### Event themes
 

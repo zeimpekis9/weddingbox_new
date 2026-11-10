@@ -35,7 +35,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
   const { db, url } = await openDemoDatabase(name)
   const key = randomBytes(32)
   const invitation = randomBytes(32).toString('base64url')
-  const password = `Demo!42-${randomBytes(16).toString('hex')}`
+  const password = randomBytes(3).toString('hex')
   const api = new URL(url)
   api.searchParams.set('options', '-c role=wedding_api')
   const child = spawn(process.execPath, ['node_modules/next/dist/bin/next','start','-H','127.0.0.1','-p','34631'], {
@@ -72,7 +72,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
       'Replacement password': replacement, 'Confirm replacement password': replacement,
       'Authenticator code': code && secret ? enrollmentCode(secret) : 'invalid',
     })[prompt], value => { secret = value })
-    await assert.rejects(setup('admin', false), /Use 16/)
+    await assert.rejects(setup('admin', false), /Use 6–24/)
     await assert.rejects(setup(password, false), /Invalid MFA/)
     assert.equal((await db.query('SELECT 1 FROM wedding.users WHERE id=$1', [ownerId])).rowCount, 0)
     assert.equal((await db.query('SELECT count(*)::int AS count FROM wedding.admin_sessions')).rows[0].count, 0)

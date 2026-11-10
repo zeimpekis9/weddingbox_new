@@ -20,9 +20,9 @@ export async function authorizeBootstrap(enabled, pendingHash, username, passwor
 }
 
 export function assertReplacement(password) {
-  if (password.length < 16 || password.length > 256 || !/[a-z]/.test(password) ||
-      !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^\w\s]/.test(password)) {
-    throw new Error('Use 16–256 characters with upper and lower case letters, a number and a symbol')
+  const length = Array.from(password).length
+  if (length < 6 || length > 24) {
+    throw new Error('Use 6–24 characters')
   }
 }
 
