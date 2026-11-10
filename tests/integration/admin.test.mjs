@@ -22,6 +22,19 @@ function codeFor(secret) {
   return String((mac.readUInt32BE(mac[19] & 15) & 0x7fffffff) % 1000000).padStart(6, '0')
 }
 
+async function burst(label, count, request) {
+  const times = await Promise.all(Array.from({ length: count }, async () => {
+    const started = performance.now()
+    const response = await request()
+    assert.equal(response.status, 200)
+    await response.arrayBuffer()
+    return performance.now() - started
+  }))
+  times.sort((left, right) => left - right)
+  const percentile = p => Math.round(times[Math.ceil(count * p) - 1])
+  console.log(JSON.stringify({ label, count, p50Ms: percentile(.50), p95Ms: percentile(.95), p99Ms: percentile(.99) }))
+}
+
 test('admin API authenticates with MFA and scopes, rejects replay, and revokes sessions', { timeout: 45000 }, async () => {
   const client = new pg.Client({ connectionString: dbUrl.href })
   const event = randomUUID()
@@ -85,7 +98,19 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.equal((await exchange(otherEvent)).status, 403)
     const grant = await exchange(event)
     assert.equal(grant.status, 200)
+    assert.equal(grant.headers.get('x-content-type-options'), 'nosniff')
+    assert.equal(grant.headers.get('referrer-policy'), 'no-referrer')
+    assert.equal(grant.headers.get('x-robots-tag'), 'noindex, nofollow')
     const guest = grant.headers.get('set-cookie').split(';')[0]
+    if (process.env.WEDDING_LOCAL_BURST === '1') {
+      for (const size of [100,300,500]) {
+        await burst('local guest page', size, () => fetch(`${origin}/join/${event}`))
+      }
+      await burst('local guest bootstrap', 100, () => fetch(`${origin}/api/events/${event}/access`, {
+        method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link: '' }),
+      }))
+    }
     const book = eventId => `${origin}/api/events/${eventId}/guestbook`
     const message = { requestId: randomUUID(), message: 'Χρόνια πολλά!' }
     const post = eventId => fetch(book(eventId), {

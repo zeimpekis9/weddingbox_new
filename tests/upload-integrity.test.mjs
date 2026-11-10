@@ -45,3 +45,31 @@ test('only confirms the original after HEAD, including after a lost copy respons
   assert.equal(await verifyOriginal(store, fixture), 'verified')
   assert.equal(copies, 2)
 })
+
+test('recovers a completed multipart upload after the completion acknowledgement is lost', async () => {
+  const fixture = { id: 'multi', bytes: partSize + 1, contentType: 'image/jpeg',
+    stage: 'stage', original: 'original', providerId: 'provider' }
+  const head = { ETag: '"etag"', ContentLength: fixture.bytes, Metadata: { 'upload-id': fixture.id } }
+  const objects = new Map()
+  const parts = [{ PartNumber: 1, Size: partSize, ETag: 'first' }, { PartNumber: 2, Size: 1, ETag: 'last' }]
+  let completions = 0
+  const store = {
+    head: async key => objects.get(key),
+    parts: async () => parts,
+    complete: async (key, id, submitted) => {
+      assert.equal(id, fixture.providerId)
+      assert.deepEqual(submitted, parts)
+      completions++
+      objects.set(key, head)
+      throw new Error('completion response lost')
+    },
+    sniff: async () => Uint8Array.of(0xff, 0xd8, 0xff, 0xdb, 0, 0),
+    copy: async (source, target, etag) => {
+      assert.equal(etag, head.ETag)
+      objects.set(target, objects.get(source))
+    },
+  }
+  await assert.rejects(verifyOriginal(store, fixture), /completion response lost/)
+  assert.equal(await verifyOriginal(store, fixture), 'verified')
+  assert.equal(completions, 1)
+})

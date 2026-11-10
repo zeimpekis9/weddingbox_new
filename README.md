@@ -45,7 +45,6 @@ npm install
 
 ### 3. Environment Variables
 
-3yJYniVCCkVgFIdg
 
 Create `.env.local`:
 

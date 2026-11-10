@@ -1,6 +1,10 @@
 # Performance and recovery plan
 
-All thresholds are proposed release gates, pending staging measurements and owner sign-off. No capacity results exist. Test a production-like TLS host, pinned PostgreSQL/Next versions, dedicated R2 staging with matching settings, dedicated test event plus isolation canary, independent generators and explicit cost/cleanup bounds. Use synthetic originals and expected checksums. Record git SHA, topology, host sizing, dataset, browser versions, limits and exact commands. Measure from Athens and venue networks as well as from load agents.
+All thresholds are proposed release gates, pending staging measurements and owner sign-off. Test a production-like TLS host, pinned PostgreSQL/Next versions, dedicated R2 staging with matching settings, dedicated test event plus isolation canary, independent generators and explicit cost/cleanup bounds. Use synthetic originals and expected checksums. Record git SHA, topology, host sizing, dataset, browser versions, limits and exact commands. Measure from Athens and venue networks as well as from load agents.
+
+The local Windows fixture run returned HTTP 200 for every request. The 100, 300 and 500 page bursts had p95 of 423, 918 and 1,328 ms. A 100-request guest bootstrap burst had p95 of 204 ms. This covers loopback rendering and PostgreSQL access with synthetic data. Live upload capacity remains unverified.
+
+Run `tests/load/wedding.k6.mjs` on an isolated HTTPS staging event using `WEDDING_LOAD_CONFIRM=isolated-staging`, `BASE_URL`, `EVENT_ID`, `GUEST_LINK`, `PHOTO_FILE`, `VIDEO_FILE`, and `GUESTS` set to 100, 300, or 500. Supply JPEG and MP4 fixtures, including an MP4 above the multipart threshold. Use an approved staging credential injection path and disable HTTP debugging so signed URLs remain out of logs. Run the network interruption, restore and ZIP concurrency exercises alongside the harness.
 
 For a local PostgreSQL restore drill, use `node scripts/db/backup.mjs dump <new-archive-path>` and `node scripts/db/backup.mjs restore-check <archive-path>`. The restore command creates and removes its own scratch database on the development Compose cluster. The archive contains application data. Use encrypted restricted storage for real backups.
 
