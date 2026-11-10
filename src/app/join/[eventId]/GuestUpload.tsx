@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
+import { defaultTheme, themeConfig } from '@/lib/theme.mjs'
 import { cancelTransfer, fingerprint, transfer, uploadType } from '@/lib/client/upload'
 const GuestContent = dynamic(() => import('./GuestContent'))
 
@@ -30,6 +32,7 @@ type StoredUpload = { requestId: string; session?: string }
 type Settings = {
   title?: string; welcome_message?: string; event_date?: string; primary_color?: string; gallery_enabled: boolean
   uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean
+  theme?: unknown; themeRevision?: number | null
 }
 
 function readUpload(key: string): StoredUpload | null {
@@ -61,6 +64,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   const controllers = useRef(new Map<string, AbortController>())
   const queued = useRef<Job[]>([])
   const text = words[language]
+  const theme = themeConfig(settings?.theme) ?? defaultTheme
 
   useEffect(() => {
     const controller = new AbortController()
@@ -148,14 +152,18 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   }
 
   return (
+    <WeddingTheme theme={theme}>
     <main lang={language} className="mx-auto max-w-2xl space-y-4 px-4 py-3 sm:px-6 sm:py-8">
       <div className="flex justify-end">
         <button type="button" aria-label="Ελληνικά / English" className="px-2 underline"
           onClick={() => setLanguage(language === 'el' ? 'en' : 'el')}>{language === 'el' ? 'English' : 'Ελληνικά'}</button>
       </div>
       <h1 className="text-3xl leading-tight sm:text-4xl">{text.title}</h1>
-      {settings?.title && <p className="border-s-4 ps-3 font-display text-xl"
-        style={{ borderColor: settings.primary_color }}>{settings.title}</p>}
+      {settings?.title && <div className="theme-name flex items-center gap-3 border-s-4 ps-3"
+        style={{ borderColor: !settings.themeRevision && settings.primary_color ? settings.primary_color : undefined }}>
+        <ThemeArtwork eventId={eventId} id={theme.monogram} kind="monogram" />
+        <p className="theme-heading text-xl">{settings.title}</p>
+      </div>}
       {settings?.event_date && <time dateTime={settings.event_date}>{settings.event_date}</time>}
       {access !== 'ready' ? <div className="card space-y-2">
         <p role="status">{text[access]}</p>
@@ -175,6 +183,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
           </label>}
           <p className="text-sm">{settings?.uploads_enabled === false ? text.disabled : `${text.ready} ${text.privacy}`}</p>
           {settings?.welcome_message && <p>{settings.welcome_message}</p>}
+          <ThemeArtwork eventId={eventId} id={theme.cover} kind="cover" />
           {settings?.uploads_enabled !== false && <p className="text-sm">{text.resume}</p>}
           {jobs.length > 0 && <p role="status">{text.done} {jobs.filter(job => job.state === 'done').length} / {jobs.length}</p>}
           <ul className="space-y-3">
@@ -183,7 +192,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
                 <p className="break-all">{job.file.name}</p>
                 <p role={job.state === 'sending' ? undefined : 'status'}>{text[job.state]}{job.state === 'sending' ? ` · ${job.progress}%` : ''}</p>
                 {job.state === 'sending' && <progress aria-label={`${text.sending}: ${job.file.name}`}
-                  className="w-full accent-wedding-800" value={job.progress} max={100} />}
+                  className="w-full" value={job.progress} max={100} />}
                 {job.state === 'sending' && <button type="button" onClick={() => controllers.current.get(job.key)?.abort()}>{text.cancel}</button>}
                 {(job.state === 'failed' || job.state === 'cancelled') && (
                   <button type="button" disabled={working} onClick={() => void run([job])}>{text.retry}</button>
@@ -197,5 +206,6 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
         </>
       )}
     </main>
+    </WeddingTheme>
   )
 }

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { readR2Config } from '../../src/lib/server/r2-config.ts'
 import { demoSlug, digest, eventId, ownerId } from './bootstrap.mjs'
+import { presets } from '../../src/lib/theme.mjs'
 
 const fixtureLink = 'b9a3ce15-4923-42b4-bf67-2e2a2052fe07'
 const fixtureGrant = digest('synthetic demo import only')
@@ -57,6 +58,8 @@ export async function seedDemo(db, invitation) {
     await db.query(`INSERT INTO wedding.event_members(event_id,user_id,role)
       SELECT $1,id,'owner' FROM wedding.users WHERE id=$2 ON CONFLICT DO NOTHING`, [eventId, ownerId])
     await db.query('INSERT INTO wedding.event_settings(event_id,guest_gallery_enabled) VALUES ($1,true) ON CONFLICT DO NOTHING', [eventId])
+    await db.query(`INSERT INTO wedding.event_themes(event_id,draft,published,revision,published_revision)
+      VALUES ($1,$2,$2,1,1) ON CONFLICT (event_id) DO NOTHING`, [eventId, JSON.stringify(presets.christmas.config)])
     await db.query(`INSERT INTO wedding.guest_links(event_id,token_hash,expires_at)
       VALUES ($1,$2,now()+interval '7 days')
       ON CONFLICT (token_hash) DO UPDATE SET expires_at=EXCLUDED.expires_at

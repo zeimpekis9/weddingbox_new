@@ -100,13 +100,17 @@ export default function EventDashboard({ eventId }: { eventId: string }) {
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 px-5 py-10">
-      <Link href="/admin" className="btn-secondary inline-flex items-center">All events</Link>
+      <Link href="/admin" prefetch={false} className="btn-secondary inline-flex items-center">All events</Link>
       <h1 className="text-3xl">{dashboard?.event.title ?? 'Event management'}</h1>
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {!dashboard && !error && <p role="status">Loading event…</p>}
       {dashboard && <>
-        <Link href={`/admin/local/${eventId}/display`} className="btn-secondary inline-flex items-center">Open ceremony display</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/local/${eventId}/display`} prefetch={false} className="btn-secondary inline-flex items-center">Open ceremony display</Link>
+          {dashboard.event.role === 'owner' && <Link href={`/admin/local/${eventId}/theme`} prefetch={false}
+            className="btn-secondary inline-flex items-center">Theme studio</Link>}
+        </div>
         <p>{dashboard.stats.photos} photos · {dashboard.stats.videos} videos · {dashboard.stats.pending} pending · {dashboard.stats.bytes} bytes</p>
         <section className="card space-y-2" aria-label="Operational status">
           <h2 className="text-xl">Operational status</h2>

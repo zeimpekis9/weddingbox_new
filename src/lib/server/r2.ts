@@ -1,5 +1,5 @@
 import {
-  AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CopyObjectCommand, CreateMultipartUploadCommand,
+  AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CopyObjectCommand, CreateMultipartUploadCommand, DeleteObjectCommand,
   GetObjectCommand, HeadObjectCommand, ListPartsCommand, PutObjectCommand, S3Client, UploadPartCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
@@ -15,6 +15,15 @@ function configure() {
   const Bucket = config.bucket
   const sendOptions = () => ({ abortSignal: AbortSignal.timeout(15000) })
   return {
+    async putThemeImage(key: string, body: Buffer) {
+      await client.send(new PutObjectCommand({ Bucket, Key: key, Body: body,
+        ContentType: 'image/webp', CacheControl: 'private, no-store', IfNoneMatch: '*' }), sendOptions())
+      const head = await client.send(new HeadObjectCommand({ Bucket, Key: key }), sendOptions())
+      if (head.ContentType !== 'image/webp' || head.ContentLength !== body.length) throw new Error('Artwork verification failed')
+    },
+    deleteThemeImage(key: string) {
+      return client.send(new DeleteObjectCommand({ Bucket, Key: key }), sendOptions())
+    },
     async signSingle(key: string, type: string) {
       return getSignedUrl(client, new PutObjectCommand({
         Bucket, Key: key, ContentType: type, IfNoneMatch: '*',

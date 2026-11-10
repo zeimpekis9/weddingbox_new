@@ -100,7 +100,7 @@ export default function LocalAdminPage() {
 
   return (
     <main className="mx-auto max-w-xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
-      <Link href="/" className="btn-secondary inline-flex items-center">Home</Link>
+      <Link href="/" prefetch={false} className="btn-secondary inline-flex items-center">Home</Link>
       <h1 className="text-3xl sm:text-4xl">Wedding administration</h1>
       {error && <p role="alert">{error}</p>}
       {loading ? <p role="status">Checking session…</p> : events ? (
@@ -111,7 +111,7 @@ export default function LocalAdminPage() {
                 <h2 className="text-xl">{event.title}</h2>
                 <p className="text-sm capitalize">{event.role}</p>
                 <div className="flex flex-wrap gap-2">
-                  <Link className="btn-secondary inline-flex items-center" href={`/admin/local/${event.id}`}>Manage event</Link>
+                  <Link className="btn-secondary inline-flex items-center" prefetch={false} href={`/admin/local/${event.id}`}>Manage event</Link>
                   {event.role === 'owner' && <button type="button" className="btn-secondary" disabled={pending}
                     onClick={() => void createLink(event.id)}>Create guest QR</button>}
                 </div>

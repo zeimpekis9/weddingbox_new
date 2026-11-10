@@ -44,6 +44,16 @@ export async function openDemoDatabase(name = 'wedding_demo') {
   url.pathname = name
   const db = new pg.Client({ connectionString: url.href })
   await db.connect()
+  try {
+    await db.query('BEGIN')
+    await db.query('SELECT pg_advisory_xact_lock(510794263)')
+    const { rows: [{ themes }] } = await db.query("SELECT to_regclass('wedding.event_themes') AS themes")
+    if (!themes) await db.query(readFileSync(new URL('../../db/migrations/009_event_themes.sql', import.meta.url), 'utf8'))
+    await db.query('COMMIT')
+  } catch (error) {
+    await db.end()
+    throw error
+  }
   return { db, url }
 }
 

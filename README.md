@@ -31,6 +31,14 @@ node --env-file=.env.local scripts/demo/local.mjs setup --local-only
 
 Use `admin` / `admin` in that terminal once. Choose a strong replacement password and enroll a TOTP authenticator. Then sign in at [local owner login](http://localhost:3000/admin) as `admin@demo.invalid` with the replacement password and a current code. The pending bootstrap hash is cleared after enrollment. Keep the generated `.env.demo.local` state private so the local instance retains its MFA key and invitation on restart.
 
+### Event themes
+
+Open **Theme studio** from the owner dashboard. Pick a preset, preview edits, and choose **Save draft** or **Publish theme**. Reset restores the selected preset in the preview. Publish to make the reset visible to guests. The Demo Wedding starts with Christmas Elegance. Existing events use Minimal Elegance until an owner publishes a theme.
+
+Apply `009_event_themes.sql` through the migration runner before enabling the studio. Theme configuration has a schema version and separate draft and published revisions. A stale editor must reload before publishing. The app checks the published revision in PostgreSQL and caches the validated configuration by event and revision. Guest access and the ceremony only receive the published snapshot.
+
+The studio accepts static JPEG, PNG and WebP artwork up to 2 MiB and 12 megapixels. It converts artwork to WebP and stores it under the event's private R2 theme prefix. Guests can open only currently published artwork through a scoped grant. Removing artwork from a theme removes its reference when published. It leaves the uploaded object in place for operational retention. An event can upload up to 80 theme assets.
+
 ## Build and verification
 
 - Run `npm run build`, `npm run typecheck`, `npm run lint` and `npm test`.

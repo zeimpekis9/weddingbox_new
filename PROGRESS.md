@@ -19,5 +19,6 @@ Commit references identify the implementation under test. Milestone updates trav
 - [x] M13 — Live EU R2 integration | PASS | Local app to EU staging bucket | Commit 6eab2f8 | Signed JPEG and multipart, CORS, integrity, retry, isolation and cleanup PASS | HTTPS staging and worker NOT RUN
 - [ ] M14 — Comprehensive pre-production drill | BLOCKED | Windows browser, R2, worker crash/ZIP, local PostgreSQL restart/restore and load smoke | App baseline d83c406 | Build, types, lint, unit, API, Chrome, WebKit and synthetic drills PASS | Restricted HTTPS, phones, independent restore and representative capacity NOT RUN
 - [x] M15 — Isolated local Demo Wedding | PASS | CLI owner bootstrap with required password and MFA, synthetic gallery and loopback QR | App baseline 8442d9d | Unit, Chrome, PostgreSQL and staging R2 PASS | User enrollment pending on the running demo
+- [x] M16 — Event theme system | PASS | Six presets, owner preview and publishing, private artwork, themed guests and ceremony, Christmas demo | App baseline 3a2e2ae | See TEST_RESULTS.md | Physical-device and staging release gates remain separate
 
 Legacy data preservation is unconfirmed. Mark migration NOT REQUIRED only after the owner confirms that no irreplaceable records or media exist. Source inventory is optional and does not block development.

@@ -83,3 +83,67 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.wedding-theme {
+  position: relative;
+  isolation: isolate;
+  min-block-size: 100dvh;
+  color: var(--theme-ink);
+  background-color: var(--theme-canvas);
+  accent-color: var(--theme-button);
+}
+
+.wedding-theme[data-background="gradient"] {
+  background-image: radial-gradient(ellipse at top, var(--theme-surface), transparent 75%);
+}
+
+.wedding-theme[data-background="paper"] {
+  background-image: repeating-linear-gradient(125deg, transparent 0 7px, color-mix(in srgb, var(--theme-surface) 30%, transparent) 8px, transparent 9px);
+}
+
+.theme-content { position: relative; }
+.wedding-theme :is(h1, h2, h3, .theme-heading) { font-family: var(--theme-heading); }
+.wedding-theme :is(.card, .input-field, .media-dialog, .btn-secondary) {
+  background-color: var(--theme-surface);
+  color: var(--theme-ink);
+  border-color: var(--theme-line);
+}
+.wedding-theme :is(.btn-primary, .btn-secondary) { border-radius: var(--theme-radius); }
+.wedding-theme .btn-primary { background-color: var(--theme-button); color: var(--theme-button-ink); }
+.wedding-theme :is(.btn-primary, .btn-secondary):hover:not(:disabled) { box-shadow: inset 0 0 0 2px currentColor; }
+.wedding-theme .btn-primary:focus-visible { outline-color: var(--theme-ink); }
+.theme-name { border-color: var(--theme-accent); }
+.theme-decoration { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.theme-branches {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: min(48%, 24rem);
+  color: var(--theme-button);
+  opacity: calc(var(--theme-intensity) * .5);
+}
+.theme-snow {
+  position: absolute;
+  inset: -42px 0 auto;
+  block-size: 9rem;
+  color: var(--theme-accent);
+  background-image: radial-gradient(circle at 9px 9px, currentColor 1px, transparent 2px),
+    radial-gradient(circle at 31px 24px, currentColor 1px, transparent 1.6px);
+  background-size: 51px 42px, 79px 42px;
+  mask-image: linear-gradient(black, transparent);
+  opacity: calc(var(--theme-intensity) * .3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .theme-snow-moving { animation: wedding-snow 4s linear; }
+}
+@keyframes wedding-snow { to { transform: translateY(42px); } }
+.theme-cover { display: block; width: 100%; aspect-ratio: 8 / 3; object-fit: cover; border-radius: .875rem; }
+.theme-monogram { flex: none; width: 3rem; height: 3rem; object-fit: contain; }
+.theme-preview.wedding-theme, .theme-preview > .wedding-theme { min-block-size: 0; }
+.theme-stage {
+  background: var(--theme-canvas);
+  color: var(--theme-ink);
+  border-block-end: 3px solid var(--theme-accent);
+}
+.theme-stage :is(nav, select) { background: var(--theme-surface); color: var(--theme-ink); }
+.theme-stage h1, .theme-stage .theme-heading { font-family: var(--theme-heading); }

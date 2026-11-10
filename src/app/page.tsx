@@ -30,7 +30,8 @@ export default function HomePage() {
               Manage your wedding events and moderate guest submissions.
             </p>
             <Link
-              href="/admin" 
+              href="/admin"
+              prefetch={false}
               className="btn-primary inline-flex items-center"
             >
               Go to Admin Dashboard →

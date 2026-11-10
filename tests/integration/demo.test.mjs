@@ -12,6 +12,7 @@ import { bootstrapOwner, eventId, ownerEmail, ownerId } from '../../scripts/demo
 import { openDemoDatabase } from '../../scripts/demo/local.mjs'
 import { seedDemo } from '../../scripts/demo/seed.mjs'
 import { readR2Config } from '../../src/lib/server/r2-config.ts'
+import { presets } from '../../src/lib/theme.mjs'
 
 const enabled = process.env.WEDDING_DEMO_TEST === 'local-eu-staging'
 const origin = 'http://localhost:34631'
@@ -52,6 +53,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
   const display = id => `/api/admin/events/${id}/display`
   let upload
   let browser
+  const artworkKeys = []
   try {
     await seedDemo(db, invitation)
     const other = randomUUID()
@@ -108,6 +110,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     const access = await call(root + '/access', null, { link: invitation })
     status(access, 200)
     const guest = access.headers.get('set-cookie').split(';')[0]
+    assert.equal((await access.json()).settings.theme.preset, 'christmas')
     const gallery = await call(root + '/gallery', guest)
     status(gallery, 200)
     assert.deepEqual((await gallery.json()).media.map(item => item.content_type).sort(), ['image/jpeg', 'video/mp4'])
@@ -125,6 +128,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     const feed = await call(display(eventId), admin)
     status(feed, 200)
     const ceremony = await feed.json()
+    assert.equal(ceremony.theme.preset, 'christmas')
     assert.equal(ceremony.photos.length, 2)
     assert.equal(ceremony.messages.length, 1)
     const image = await fetch(ceremony.photos[0].url)
@@ -144,6 +148,46 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     assert.deepEqual(await (await complete()).json(), await receipt.json())
     status(await call(`/api/events/${other}/gallery?media=${upload.id}`, guest), 404)
 
+    const themePath = `/api/admin/events/${eventId}/theme`
+    status(await call(themePath, guest), 404)
+    status(await call(`/api/admin/events/${other}/theme`, admin), 404)
+    status(await call(themePath, admin, { config: { ...presets.gold.config, font: 'url(test)' },
+      revision: 1, publish: false }, 'PUT'), 422)
+    const addArtwork = (kind, body) => fetch(`${origin}${themePath}/artwork?kind=${kind}`, {
+      method: 'POST', headers: { Origin: origin, Cookie: admin, 'Content-Type': 'image/jpeg' }, body,
+    })
+    status(await addArtwork('cover', Buffer.from('<svg onload="bad()"/>')), 422)
+    const ids = {}
+    for (const kind of ['cover', 'monogram']) {
+      const artwork = await addArtwork(kind, photo)
+      status(artwork, 201)
+      ids[kind] = (await artwork.json()).id
+      assert.match(ids[kind], /^[a-f0-9-]{36}$/)
+      artworkKeys.push(`events/${eventId}/theme/${ids[kind]}.webp`)
+    }
+    const asset = `${root}/theme-assets/${ids.cover}`
+    status(await call(asset), 404)
+    status(await call(asset, guest), 404)
+    status(await call(asset, admin), 303)
+    const custom = { ...presets.gold.config, ...ids }
+    const saveTheme = (config, revision, publish) => call(themePath, admin, { config, revision, publish }, 'PUT')
+    status(await saveTheme({ ...custom, monogram: ids.cover }, 1, false), 409)
+    status(await saveTheme(custom, 1, false), 200)
+    status(await saveTheme(custom, 1, true), 409)
+    assert.equal((await (await call(root + '/access', guest, { link: '' })).json()).settings.theme.preset, 'christmas')
+    status(await call(asset, guest), 404)
+    status(await saveTheme(custom, 2, true), 200)
+    const published = await call(root + '/access', guest, { link: '' })
+    assert.deepEqual((await published.json()).settings.theme, custom)
+    assert.equal((await (await call(display(eventId), admin)).json()).theme.preset, 'gold')
+    status(await call(`/api/events/${other}/theme-assets/${ids.cover}`, admin), 404)
+    const artwork = await call(asset, guest)
+    status(artwork, 303)
+    const artworkImage = await fetch(artwork.headers.get('location'))
+    assert.equal((await sharp(Buffer.from(await artworkImage.arrayBuffer())).metadata()).format, 'webp')
+    status(await saveTheme(presets.christmas.config, 3, true), 200)
+    status(await call(asset, guest), 404)
+
     await page.getByRole('link', { name: 'Manage event' }).click()
     await page.getByRole('button', { name: 'Save event details' }).waitFor({ timeout: 8000 })
     await page.getByRole('link', { name: 'Open ceremony display' }).click()
@@ -152,6 +196,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
   } finally {
     try {
       await browser?.close()
+      for (const Key of artworkKeys) await store.send(new DeleteObjectCommand({ Bucket: config.bucket, Key }))
       if (/^[a-f0-9-]{36}$/.test(upload?.id ?? '')) {
         for (const area of ['staging','originals']) {
           await store.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: `events/${eventId}/${area}/${upload.id}` }))

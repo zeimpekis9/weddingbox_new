@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { themeProps } from '@/components/WeddingTheme'
+import { defaultTheme, themeConfig } from '@/lib/theme.mjs'
 
 type Photo = { id: string; url: string }
-type Feed = { title: string; owner: boolean; photos: Photo[]; messages: { id: string; message_text: string }[] }
+type Feed = { title: string; owner: boolean; photos: Photo[]; messages: { id: string; message_text: string }[]; theme?: unknown }
 const empty: Feed = { title: '', owner: false, photos: [], messages: [] }
 
 export default function Ceremony({ eventId }: { eventId: string }) {
@@ -142,12 +144,13 @@ export default function Ceremony({ eventId }: { eventId: string }) {
   }
 
   return (
-    <main ref={stage} className={`ceremony-screen flex h-[100dvh] min-h-72 flex-col gap-2 overflow-y-auto bg-black text-white ${presentation ? 'fixed inset-0 z-50' : 'relative'}`}>
-      <nav className="z-10 flex shrink-0 flex-wrap items-center gap-x-4 rounded bg-black/70 px-2 text-sm" aria-label="Ceremony controls">
+    <main ref={stage} {...themeProps(themeConfig(feed.theme) ?? defaultTheme)}
+      className={`theme-stage ceremony-screen flex h-[100dvh] min-h-72 flex-col gap-2 overflow-y-auto ${presentation ? 'fixed inset-0 z-50' : 'relative'}`}>
+      <nav className="z-10 flex shrink-0 flex-wrap items-center gap-x-4 rounded px-2 text-sm" aria-label="Ceremony controls">
         <button aria-pressed={mode === 'photos'} className="aria-pressed:underline" onClick={() => { setMode('photos'); setPosition(0) }}>Slideshow</button>
         <button aria-pressed={mode === 'messages'} className="aria-pressed:underline" onClick={() => { setMode('messages'); setPosition(0) }}>Live messages</button>
         <button onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
-        <label>Seconds <select className="bg-black" value={duration} onChange={event => setDuration(Number(event.target.value))}>
+        <label>Seconds <select value={duration} onChange={event => setDuration(Number(event.target.value))}>
           {[4,6,10,15].map(value => <option key={value}>{value}</option>)}
         </select></label>
         <button onClick={() => void fullscreen()}>{presentation ? 'Exit presentation' : 'Fullscreen'}</button>
@@ -161,7 +164,7 @@ export default function Ceremony({ eventId }: { eventId: string }) {
             className={`absolute h-full w-full object-contain transition-opacity duration-700 motion-reduce:transition-none ${index === item ? 'opacity-100' : 'opacity-0'}`} />
         ))}
         {mode === 'messages' && feed.messages[index] && <p tabIndex={0}
-          className="max-h-full max-w-5xl overflow-auto px-2 text-[clamp(1.125rem,4.5vw,3.75rem)]">{feed.messages[index].message_text}</p>}
+          className="theme-heading max-h-full max-w-5xl overflow-auto px-2 text-[clamp(1.125rem,4.5vw,3.75rem)]">{feed.messages[index].message_text}</p>}
         {!count && !notice && <p>No approved {mode} yet.</p>}
       </div>
       <footer className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2">

@@ -1,6 +1,12 @@
 import { exchangeLink, guestCookie, guestGrant } from '@/lib/server/guest-access'
 import { json, sameOrigin, smallJson } from '@/lib/server/http'
 import { eventConfig } from '@/lib/server/guest-content'
+import { publishedTheme } from '@/lib/server/event-theme'
+
+async function brandedSettings(eventId: string) {
+  const [settings, theme] = await Promise.all([eventConfig(eventId, true), publishedTheme(eventId)])
+  return { ...settings, theme: theme.config, themeRevision: theme.revision }
+}
 
 export async function POST(request: Request, context: RouteContext<'/api/events/[eventId]/access'>) {
   if (!sameOrigin(request)) return json({ error: 'Forbidden' }, 403)
@@ -10,10 +16,10 @@ export async function POST(request: Request, context: RouteContext<'/api/events/
     return json({ error: 'Invalid link' }, 400)
   }
   try {
-    if (await guestGrant(request, eventId)) return json({ authorized: true, settings: await eventConfig(eventId, true) })
+    if (await guestGrant(request, eventId)) return json({ authorized: true, settings: await brandedSettings(eventId) })
     const token = await exchangeLink(eventId, body.link)
     if (!token) return json({ error: 'Invalid or expired link' }, 403)
-    return json({ authorized: true, settings: await eventConfig(eventId, true) }, 200, {
+    return json({ authorized: true, settings: await brandedSettings(eventId) }, 200, {
       'Set-Cookie': `${guestCookie}=${token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=86400`,
     })
   } catch {
