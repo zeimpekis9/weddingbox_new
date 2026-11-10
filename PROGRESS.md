@@ -3,7 +3,7 @@
 Commit references identify the implementation under test. Milestone updates travel with their code.
 
 - [x] M0 — Main branch synchronization | PASS | Foundation fast-forwarded onto main | Commit 4d6ee1d | Build, TypeScript, lint, unit and PostgreSQL integration PASS | Blockers none
-- [x] M1 — PostgreSQL infrastructure | PASS | Compose, versioned migrations and restart persistence | Commit 4d6ee1d | Database, membership, restart PASS | Live source inventory belongs to M10
+- [x] M1 — PostgreSQL infrastructure | PASS | Compose, versioned migrations and restart persistence | Commit 4d6ee1d | Database, membership, restart PASS | Blockers none
 - [x] M2 — Admin authentication and event authorization | PASS | PostgreSQL sessions, TOTP replay prevention and event isolation | Commit c14345f | Build, types, lint, unit, SQL and HTTP integration PASS | Live owner enrollment pending
 - [x] M3 — Cloudflare R2 verified uploads | PASS | Signed single and multipart transfer, scoped grants and verified receipts | Commit 6fce7b8 | Build, types, lint, mock storage and PostgreSQL HTTP integration PASS | Live R2 UNVERIFIED
 - [x] M4 — Guest upload experience | PASS | QR download, bilingual upload, bounded concurrency and resume | Commit ce9f3d7 | Build, types, lint, unit, Chrome with mocked storage and HTTP integration PASS | Live Safari and R2 UNVERIFIED
@@ -12,5 +12,7 @@ Commit references identify the implementation under test. Milestone updates trav
 - [x] M7 — Ceremony slideshow and live messages | PASS | Authorized approved feed, fullscreen and reconnect cache | Commit bc95bb3 | Build, types, lint, unit, browser disconnect and PostgreSQL HTTP integration PASS | Live R2 preview playback UNVERIFIED
 - [x] M8 — Backups, monitoring and recovery | PASS | Local restore, health, upload-only mode, leased thumbnails and archives | Commit 1e2ea6f | Build, types, lint, ZIP integrity, worker lease recovery, local restore and browser PASS | Independent backup, alert routing and live R2 UNVERIFIED
 - [ ] M9 — Performance and security testing | BLOCKED | Security headers, local request bursts and staging k6 harness | Commit fbabf40 | Build, types, lint, browser, HTTP and k6 inspect PASS; representative load NOT RUN | Needs isolated staging R2, TLS host and venue test
-- [ ] M10 — Migration rehearsal and production readiness | BLOCKED | Linux image, synthetic manifest reconciliation and seeded restore | Commit a1d61bc | Build, types, lint, unit, browser, HTTP, Linux smoke and fixture restore PASS; live rehearsal NOT RUN | Needs read-only Supabase access, isolated staging, independent backup and cutover approval
-- [ ] M11 — Supabase runtime removal after verified cutover | BLOCKED | Commit — | Tests NOT RUN | Requires verified cutover and separate authorization to retire production resources
+- [ ] M10 — Production readiness | BLOCKED | Linux image and seeded restore | Commit a1d61bc | Local build and restore PASS; staging validation NOT RUN | Needs isolated staging, live R2, independent backup and deployment approval
+- [x] M11 — Supabase runtime removal | PASS | PostgreSQL and R2 workflows are the default | Commit 500be58 | Zero-config Linux build and startup, types, lint, 13 unit tests, Chrome network check, PostgreSQL integration and restore PASS | Blockers none
+
+Legacy data preservation is unconfirmed. Mark migration NOT REQUIRED only after the owner confirms that no irreplaceable records or media exist. Source inventory is optional and does not block development.
