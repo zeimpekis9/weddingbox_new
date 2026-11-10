@@ -12,6 +12,25 @@ Guests scan an event QR code to send photos and videos, write or record guestboo
 
 The [database guide](POSTGRESQL_SCHEMA.md) describes provisioning. See [R2 storage](R2_STORAGE_DESIGN.md) for bucket and CORS settings and [delivery progress](PROGRESS.md) for verification status.
 
+### Local Demo Wedding
+
+With local Compose PostgreSQL migrated and the EU `weddingbox-staging` R2 settings in `.env.local`, run:
+
+```powershell
+npm run build
+node --env-file=.env.local scripts/demo/local.mjs serve --local-only
+```
+
+Open [the local QR invitation](http://localhost:3001/invite) and choose **Preview guest experience**. The demo uses a separate PostgreSQL database, a dedicated event namespace in the staging bucket, and synthetic media. The app, invitation and worker stay running while the launcher runs. Keep both listener ports private. The invitation QR targets this computer's localhost.
+
+For owner access, run the following in a separate interactive terminal:
+
+```powershell
+node --env-file=.env.local scripts/demo/local.mjs setup --local-only
+```
+
+Use `admin` / `admin` in that terminal once. Choose a strong replacement password and enroll a TOTP authenticator. Then sign in at [local owner login](http://localhost:3000/admin) as `admin@demo.invalid` with the replacement password and a current code. The pending bootstrap hash is cleared after enrollment. Keep the generated `.env.demo.local` state private so the local instance retains its MFA key and invitation on restart.
+
 ## Build and verification
 
 - Run `npm run build`, `npm run typecheck`, `npm run lint` and `npm test`.
