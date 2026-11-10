@@ -73,20 +73,27 @@ test('guest, gallery, guestbook, admin and display workflows use only first-part
     })
     await page.route('**/mock-part', route => route.fulfill({ status: 200 }))
     await page.goto(`${origin}/join/${event}#${link}`)
+    await page.getByLabel('Τραβήξτε φωτογραφία', { exact: true }).waitFor({ state: 'attached' })
     const selectEnglish = () => page.getByRole('button', { name: 'Ελληνικά / English' }).click()
     await selectEnglish()
-    await page.locator('input[type=file]').setInputFiles(payload)
+    const picker = page.getByLabel('Choose photos and videos', { exact: true })
+    const camera = page.getByLabel('Take picture', { exact: true })
+    assert.equal(await picker.getAttribute('capture'), null)
+    assert.equal(await camera.getAttribute('capture'), 'environment')
+    assert.equal(await camera.getAttribute('accept'), 'image/*')
+    assert.equal(await camera.getAttribute('multiple'), null)
+    await picker.setInputFiles(payload)
     await page.getByText('Upload interrupted', { exact: true }).waitFor()
     assert.equal(await page.getByText('Received', { exact: true }).count(), 0)
     assert.equal(new URL(page.url()).hash, '')
     await page.reload()
     await selectEnglish()
     allowReceipt = true
-    await page.locator('input[type=file]').setInputFiles(payload)
+    await camera.setInputFiles(payload)
     await page.getByText('Received', { exact: true }).waitFor()
     assert.equal(requestIds.length, 2)
     assert.equal(requestIds[0], requestIds[1])
-    await page.locator('input[type=file]').setInputFiles([
+    await picker.setInputFiles([
       { ...payload, name: 'second-photo.jpg', mimeType: '' },
       { name: 'video.mp4', mimeType: 'video/mp4', buffer: Buffer.alloc(10, 1) },
     ])

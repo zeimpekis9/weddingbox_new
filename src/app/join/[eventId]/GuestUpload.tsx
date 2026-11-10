@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import dynamic from 'next/dynamic'
 import { backdropUrl, ThemeArtwork, WeddingTheme } from '@/components/WeddingTheme'
 import { defaultTheme, themeConfig } from '@/lib/theme.mjs'
@@ -9,7 +9,7 @@ const GuestContent = dynamic(() => import('./GuestContent'))
 
 const words = {
   el: {
-    title: 'Μοιραστείτε τις αναμνήσεις σας', choose: 'Επιλέξτε φωτογραφίες και βίντεο',
+    title: 'Μοιραστείτε τις αναμνήσεις σας', choose: 'Επιλέξτε φωτογραφίες και βίντεο', camera: 'Τραβήξτε φωτογραφία',
     ready: 'Μπορείτε να επιλέξετε πολλά αρχεία μαζί.', retry: 'Δοκιμάστε ξανά', cancel: 'Ακύρωση',
     loading: 'Έλεγχος συνδέσμου…', denied: 'Ο σύνδεσμος δεν είναι διαθέσιμος. Σαρώστε ξανά τον κωδικό QR.',
     queued: 'Σε αναμονή', sending: 'Αποστολή', done: 'Παραλήφθηκε', failed: 'Η αποστολή διακόπηκε',
@@ -18,7 +18,7 @@ const words = {
     resume: 'Για συνέχιση μετά την επαναφόρτωση, επιλέξτε ξανά τα ίδια αρχεία.',
   },
   en: {
-    title: 'Share your memories', choose: 'Choose photos and videos',
+    title: 'Share your memories', choose: 'Choose photos and videos', camera: 'Take picture',
     ready: 'Select several files at once.', retry: 'Retry', cancel: 'Cancel',
     loading: 'Checking your link…', denied: 'This link is unavailable. Scan the QR code again.',
     queued: 'Waiting', sending: 'Uploading', done: 'Received', failed: 'Upload interrupted',
@@ -152,6 +152,11 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
     void run(batch)
   }
 
+  function selectFiles(event: ChangeEvent<HTMLInputElement>) {
+    add(event.currentTarget.files)
+    event.currentTarget.value = ''
+  }
+
   return (
     <WeddingTheme theme={theme} backdrop={backdrop}>
     <main lang={language} className="mx-auto max-w-2xl space-y-4 px-4 py-3 sm:px-6 sm:py-8">
@@ -174,14 +179,18 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
         }}>{text.retry}</button>}
       </div> : (
         <>
-          {settings?.uploads_enabled !== false && <label className="btn-primary block cursor-pointer text-center focus-within:outline">
-            {text.choose}
-            <input type="file" className="sr-only" multiple accept="image/*,video/*"
-              disabled={working} onChange={event => {
-                add(event.target.files)
-                event.target.value = ''
-              }} />
-          </label>}
+          {settings?.uploads_enabled !== false && <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="btn-primary block cursor-pointer text-center focus-within:outline">
+              {text.choose}
+              <input type="file" className="sr-only" multiple accept="image/*,video/*"
+                disabled={working} onChange={selectFiles} />
+            </label>
+            <label className="btn-secondary block cursor-pointer text-center focus-within:outline">
+              {text.camera}
+              <input type="file" className="sr-only" accept="image/*" capture="environment"
+                disabled={working} onChange={selectFiles} />
+            </label>
+          </div>}
           <p className="text-sm">{settings?.uploads_enabled === false ? text.disabled : `${text.ready} ${text.privacy}`}</p>
           {settings?.welcome_message && <p>{settings.welcome_message}</p>}
           {!backdrop && <ThemeArtwork eventId={eventId} id={theme.cover} kind="cover" />}

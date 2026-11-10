@@ -76,3 +76,7 @@ Use [the recovery and performance plan](PERFORMANCE_AND_RECOVERY_PLAN.md) for in
 - Production build, TypeScript, lint and 19 unit tests passed. Chrome and WebKit previewed 80 synthetic photos at mobile and desktop widths, changed layouts locally, and verified zero artwork POSTs before using the collage and a single POST afterward.
 - The live Chrome/PostgreSQL/EU R2 integration rendered 80 synthetic photos, published the collage, downloaded the private guest-authorized asset, and verified a 1440×1080 WebP. The test removed its synthetic collage from R2.
 - The backdrop-only regression verifies that the collage has no duplicate inside the guest content or live studio preview. It also verifies that switching to a plain background preserves the ordinary inline cover. The current local event's published collage decoded as a backdrop in Chrome.
+
+## Guest camera shortcut
+
+- Build, TypeScript, lint, 19 unit tests and Chrome/WebKit guest and responsive suites passed. Browser coverage verified the photo-only rear-camera hint, the separate multi-file picker, and a simulated capture reaching the normal verified upload receipt. Native camera launch on a physical phone was not run.
