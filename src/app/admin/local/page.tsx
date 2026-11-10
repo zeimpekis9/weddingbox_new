@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState, type FormEvent } from 'react'
 
 type Event = { id: string; slug: string; title: string; role: 'owner' | 'moderator' }
@@ -104,6 +105,7 @@ export default function LocalAdminPage() {
             {events.map(event => (
               <li key={event.id} className="space-y-2">
                 <p>{event.title} · {event.role}</p>
+                <Link className="mr-3 underline" href={`/admin/local/${event.id}`}>Manage event</Link>
                 {event.role === 'owner' && <button type="button" className="underline" disabled={pending}
                   onClick={() => void createLink(event.id)}>Create guest QR</button>}
               </li>

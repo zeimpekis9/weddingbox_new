@@ -95,10 +95,23 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.equal((await post(event)).status, 201)
     assert.equal((await post(event)).status, 200)
     assert.equal((await fetch(book(event), { headers: { cookie: guest } })).status, 404)
-    await client.query('INSERT INTO wedding.event_settings (event_id,guest_gallery_enabled) VALUES ($1,true)', [event])
+    const management = id => `${origin}/api/admin/events/${id}/manage`
+    const patch = (id, body) => fetch(management(id), {
+      method: 'PATCH', headers: { Origin: origin, cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const settings = { kind: 'settings', gallery_enabled: true, uploads_enabled: true, messages_enabled: true, voice_enabled: true }
+    assert.equal((await patch(otherEvent, settings)).status, 404)
+    assert.equal((await patch(event, settings)).status, 200)
     const readBook = () => fetch(book(event), { headers: { cookie: guest } }).then(response => response.json())
     assert.deepEqual((await readBook()).messages, [])
-    await client.query("UPDATE wedding.submissions SET moderation='approved' WHERE event_id=$1", [event])
+    const dashboard = await fetch(management(event), { headers: { cookie } })
+    assert.equal(dashboard.status, 200)
+    const records = (await dashboard.json()).messages
+    assert.equal(records.length, 1)
+    const moderation = { kind: 'message', id: records[0].id, state: 'approved' }
+    assert.equal((await patch(otherEvent, moderation)).status, 404)
+    assert.equal((await patch(event, moderation)).status, 200)
     assert.deepEqual((await readBook()).messages.map(item => item.message_text), [message.message])
     const file = { requestId: randomUUID(), filename: 'test.jpg', type: 'image/jpeg', bytes: 100 }
     const init = (eventId, request = file) => fetch(`${origin}/api/events/${eventId}/uploads`, {
@@ -130,6 +143,7 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
   } finally {
     child.kill()
     try {
+      await client.query('DELETE FROM wedding.admin_audit WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.submissions WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.event_settings WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.upload_sessions WHERE event_id=$1', [event])
