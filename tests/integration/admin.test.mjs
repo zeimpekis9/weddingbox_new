@@ -113,6 +113,13 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.equal((await patch(otherEvent, moderation)).status, 404)
     assert.equal((await patch(event, moderation)).status, 200)
     assert.deepEqual((await readBook()).messages.map(item => item.message_text), [message.message])
+    const display = id => fetch(`${origin}/api/admin/events/${id}/display`, { headers: { cookie } })
+    assert.equal((await display(otherEvent)).status, 404)
+    const approvedFeed = await display(event)
+    assert.equal(approvedFeed.status, 200)
+    assert.deepEqual((await approvedFeed.json()).messages.map(item => item.message_text), [message.message])
+    assert.equal((await patch(event, { ...moderation, state: 'hidden' })).status, 200)
+    assert.deepEqual((await (await display(event)).json()).messages, [])
     const file = { requestId: randomUUID(), filename: 'test.jpg', type: 'image/jpeg', bytes: 100 }
     const init = (eventId, request = file) => fetch(`${origin}/api/events/${eventId}/uploads`, {
       method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },

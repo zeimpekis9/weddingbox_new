@@ -8,7 +8,7 @@ const event = '10000000-0000-0000-0000-000000000001'
 const link = 'a'.repeat(43)
 const payload = { name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([255,216,255,219,0,0]) }
 
-test('guest can reselect an interrupted file and sees success only after a receipt', { timeout: 45000 }, async () => {
+test('guest resumes with a verified receipt and ceremony messages survive a disconnect', { timeout: 45000 }, async () => {
   const child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '34621'], {
     env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1',
       NEXT_PUBLIC_SUPABASE_URL: 'https://example.invalid', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'build-fixture' },
@@ -58,6 +58,19 @@ test('guest can reselect an interrupted file and sees success only after a recei
     await page.getByText('Received', { exact: true }).waitFor()
     assert.equal(requestIds.length, 2)
     assert.equal(requestIds[0], requestIds[1])
+
+    let online = true
+    await page.route('**/api/admin/events/*/display', route => online
+      ? route.fulfill({ json: { title: 'Test event', owner: false, photos: [],
+        messages: [{ id: 'approved', message_text: 'Approved for the ceremony' }] } })
+      : route.fulfill({ status: 503, json: { error: 'offline' } }))
+    await page.goto(`${origin}/admin/local/${event}/display`)
+    await page.getByRole('button', { name: 'Live messages' }).click()
+    const shown = page.getByText('Approved for the ceremony', { exact: true })
+    await shown.waitFor()
+    online = false
+    await page.getByText('Reconnecting…', { exact: true }).waitFor()
+    assert.equal(await shown.count(), 1)
   } finally {
     await browser?.close()
     child.kill()

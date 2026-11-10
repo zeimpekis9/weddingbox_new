@@ -87,6 +87,7 @@ export default function EventDashboard({ eventId }: { eventId: string }) {
       <h1 className="text-3xl">{dashboard?.event.title ?? 'Event management'}</h1>
       {error && <p role="alert">{error}</p>}
       {dashboard && <>
+        <Link href={`/admin/local/${eventId}/display`} className="underline">Open ceremony display</Link>
         <p>{dashboard.stats.photos} photos · {dashboard.stats.videos} videos · {dashboard.stats.pending} pending · {dashboard.stats.bytes} bytes</p>
         {dashboard.event.role === 'owner' && <form className="space-y-2 rounded border p-4" onSubmit={saveSettings}>
           {Object.entries(options).map(([key, label]) => <label key={key} className="block">
