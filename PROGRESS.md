@@ -11,6 +11,6 @@ Commit references identify the implementation under test. Milestone updates trav
 - [x] M6 — Admin dashboard and moderation | PASS | Role-based event settings, statistics, previews and audit | Commit 5710745 | Build, types, lint, unit, browser and PostgreSQL moderation integration PASS | R2 preview and operator enrollment UNVERIFIED
 - [x] M7 — Ceremony slideshow and live messages | PASS | Authorized approved feed, fullscreen and reconnect cache | Commit bc95bb3 | Build, types, lint, unit, browser disconnect and PostgreSQL HTTP integration PASS | Live R2 preview playback UNVERIFIED
 - [x] M8 — Backups, monitoring and recovery | PASS | Local restore, health, upload-only mode, leased thumbnails and archives | Commit 1e2ea6f | Build, types, lint, ZIP integrity, worker lease recovery, local restore and browser PASS | Independent backup, alert routing and live R2 UNVERIFIED
-- [ ] M9 — Performance and security testing | TODO | Commit — | Tests NOT RUN | Representative infrastructure pending
+- [ ] M9 — Performance and security testing | BLOCKED | Security headers, local request bursts and staging k6 harness | Commit fbabf40 | Build, types, lint, browser, HTTP and k6 inspect PASS; representative load NOT RUN | Needs isolated staging R2, TLS host and venue test
 - [ ] M10 — Migration rehearsal and production readiness | TODO | Commit — | Tests NOT RUN | Live Supabase inventory, host and cutover approval pending
 - [ ] M11 — Supabase runtime removal after verified cutover | TODO | Commit — | Tests NOT RUN | Requires verified cutover
