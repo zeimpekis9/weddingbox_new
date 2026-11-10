@@ -76,8 +76,10 @@ function configure() {
         Bucket, Key: target, CopySource: `${Bucket}/${source}`, CopySourceIfMatch: etag,
       }), sendOptions())
     },
-    signedGet(key: string) {
-      return getSignedUrl(client, new GetObjectCommand({ Bucket, Key: key }), { expiresIn: 60 })
+    signedGet(key: string, filename?: 'wedding-event.zip') {
+      return getSignedUrl(client, new GetObjectCommand({
+        Bucket, Key: key, ResponseContentDisposition: filename ? `attachment; filename="${filename}"` : undefined,
+      }), { expiresIn: 60 })
     },
   }
 }

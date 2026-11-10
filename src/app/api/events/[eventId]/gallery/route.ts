@@ -23,14 +23,17 @@ export async function GET(request: Request, context: Context) {
       return media ? json({ url: await r2().signedGet(media.object_key) }) : json({ error: 'Media unavailable' }, 404)
     }
     const { rows } = await database().query(`
-      SELECT id, filename, content_type, created_at FROM wedding.media
+      SELECT id, filename, content_type, created_at, thumbnail_key FROM wedding.media
       WHERE event_id=$1 AND moderation='approved' AND
         ($2::uuid IS NULL OR (created_at,id) < (
           SELECT created_at,id FROM wedding.media WHERE event_id=$1 AND id=$2 AND moderation='approved'
         ))
       ORDER BY created_at DESC,id DESC LIMIT 25
     `, [eventId, cursor])
-    return json({ media: rows.slice(0,24), next: rows.length === 25 ? rows[23].id : null })
+    const media = await Promise.all(rows.slice(0,24).map(async ({ thumbnail_key, ...item }) => ({
+      ...item, thumbnail: thumbnail_key ? await r2().signedGet(thumbnail_key) : null,
+    })))
+    return json({ media, next: rows.length === 25 ? rows[23].id : null })
   } catch {
     return json({ error: 'Gallery unavailable' }, 503)
   }

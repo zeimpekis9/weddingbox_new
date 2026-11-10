@@ -15,7 +15,7 @@ export async function GET(request: Request, context: RouteContext<'/api/admin/ev
     if (!event) return json({ error: 'Display unavailable' }, 404)
     const values = [session,eventId]
     const [photos, messages] = await Promise.all([
-      db.query(`SELECT id,object_key FROM wedding.media WHERE moderation='approved' AND content_type LIKE 'image/%'
+      db.query(`SELECT id,COALESCE(thumbnail_key,object_key) AS object_key FROM wedding.media WHERE moderation='approved' AND content_type LIKE 'image/%'
         AND event_id IN (SELECT id FROM wedding.admin_events($1) WHERE id=$2)
         ORDER BY created_at DESC,id DESC LIMIT 12`, values),
       db.query(`SELECT id,message_text FROM wedding.submissions WHERE moderation='approved' AND type='message'

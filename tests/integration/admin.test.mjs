@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import pg from 'pg'
 import { hashPassword, sealTotp } from '../../src/lib/server/admin-crypto.mjs'
+import { claimJob } from '../../scripts/worker/queue.mjs'
 
 const origin = 'http://127.0.0.1:34619'
 const env = Object.fromEntries(readFileSync('.env.compose.local', 'utf8').split(/\r?\n/)
@@ -120,6 +121,32 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     assert.deepEqual((await approvedFeed.json()).messages.map(item => item.message_text), [message.message])
     assert.equal((await patch(event, { ...moderation, state: 'hidden' })).status, 200)
     assert.deepEqual((await (await display(event)).json()).messages, [])
+    const exports = id => `${origin}/api/admin/events/${id}/exports`
+    const queueExport = id => fetch(exports(id), { method: 'POST', headers: { Origin: origin, cookie } })
+    assert.equal((await queueExport(otherEvent)).status, 404)
+    assert.equal((await queueExport(event)).status, 202)
+    assert.equal((await queueExport(event)).status, 409)
+    const jobs = await fetch(exports(event), { headers: { cookie } }).then(response => response.json())
+    assert.deepEqual(jobs.exports.map(job => job.state), ['queued'])
+    assert.equal((await fetch(`${exports(event)}?download=${jobs.exports[0].id}`, { headers: { cookie } })).status, 404)
+    await client.query('BEGIN')
+    try {
+      await client.query("UPDATE wedding.background_jobs SET run_at='2000-01-01' WHERE id=$1", [jobs.exports[0].id])
+      await client.query('SET LOCAL ROLE wedding_worker')
+      assert.equal(await claimJob(client, true), undefined)
+      const claimed = await claimJob(client)
+      assert.equal(claimed.id, jobs.exports[0].id)
+      assert.equal(claimed.attempts, 1)
+      await client.query("UPDATE wedding.background_jobs SET lease_until=now()-interval '1 second' WHERE id=$1", [claimed.id])
+      const recovered = await claimJob(client)
+      assert.equal(recovered.id, claimed.id)
+      assert.equal(recovered.attempts, 2)
+      assert.notEqual(recovered.lease, claimed.lease)
+      assert.equal((await client.query("UPDATE wedding.background_jobs SET state='ready' WHERE id=$1 AND lease=$2",
+        [claimed.id, claimed.lease])).rowCount, 0)
+    } finally {
+      await client.query('ROLLBACK')
+    }
     const file = { requestId: randomUUID(), filename: 'test.jpg', type: 'image/jpeg', bytes: 100 }
     const init = (eventId, request = file) => fetch(`${origin}/api/events/${eventId}/uploads`, {
       method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
@@ -150,6 +177,7 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
   } finally {
     child.kill()
     try {
+      await client.query('DELETE FROM wedding.background_jobs WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.admin_audit WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.submissions WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.event_settings WHERE event_id=$1', [event])

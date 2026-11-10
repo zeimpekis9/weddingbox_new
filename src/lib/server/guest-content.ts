@@ -5,5 +5,8 @@ export async function eventConfig(eventId: string) {
     title: string; welcome_message: string | null; gallery_enabled: boolean
     uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean
   }>('SELECT * FROM wedding.guest_event_config($1)', [eventId])
+  if (settings && process.env.WEDDING_UPLOAD_ONLY === '1') {
+    return { ...settings, gallery_enabled: false, messages_enabled: false, voice_enabled: false }
+  }
   return settings
 }

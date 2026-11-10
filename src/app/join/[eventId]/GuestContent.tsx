@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
-type Media = { id: string; filename: string; content_type: string }
+type Media = { id: string; filename: string; content_type: string; thumbnail?: string }
 type Message = { id: string; message_text: string }
 type Settings = { gallery_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean }
 
@@ -136,7 +136,10 @@ export default function GuestContent({ eventId, settings, language, addVoice, bu
           {open && <>
             <ul className="grid grid-cols-2 gap-2">
               {media.map(item => <li key={item.id}><button type="button" className="break-all underline"
-                onClick={() => void viewMedia(item)}>{item.filename}</button></li>)}
+                onClick={() => void viewMedia(item)}>
+                {item.thumbnail && <img src={item.thumbnail} alt="" loading="lazy" className="h-28 w-full rounded object-cover" />}
+                {item.filename}
+              </button></li>)}
             </ul>
             {cursor && <button type="button" className="underline" onClick={() => void gallery(cursor)}>
               {el ? 'Περισσότερα' : 'Load more'}

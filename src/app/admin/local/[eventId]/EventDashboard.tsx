@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState, type FormEvent } from 'react'
+import Exports from './Exports'
 
 type Item = { id: string; moderation: string; filename?: string; message_text?: string; content_type?: string }
 type Settings = { gallery_enabled: boolean; uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean }
@@ -103,6 +104,7 @@ export default function EventDashboard({ eventId }: { eventId: string }) {
           <h2 className="text-xl">Recent moderation and settings changes</h2>
           <ul>{dashboard.logs.map((log, index) => <li key={index}>{log.operation} · {new Date(log.created_at).toLocaleString()}</li>)}</ul>
         </section>}
+        {dashboard.event.role === 'owner' && <Exports eventId={eventId} />}
       </>}
       {preview && <div role="dialog" aria-modal="true" className="modal-overlay">
         <div className="modal-content space-y-3 p-5">

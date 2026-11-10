@@ -2,6 +2,10 @@
 
 All thresholds are proposed release gates, pending staging measurements and owner sign-off. No capacity results exist. Test a production-like TLS host, pinned PostgreSQL/Next versions, dedicated R2 staging with matching settings, dedicated test event plus isolation canary, independent generators and explicit cost/cleanup bounds. Use synthetic originals and expected checksums. Record git SHA, topology, host sizing, dataset, browser versions, limits and exact commands. Measure from Athens and venue networks as well as from load agents.
 
+For a local PostgreSQL restore drill, use `node scripts/db/backup.mjs dump <new-archive-path>` and `node scripts/db/backup.mjs restore-check <archive-path>`. The restore command creates and removes its own scratch database on the development Compose cluster. The archive contains application data. Use encrypted restricted storage for real backups.
+
+Run the worker with `node --env-file=.env.local scripts/worker/run.mjs` using a separate `WEDDING_WORKER_DATABASE_URL` account granted `wedding_worker`. The worker processes one job at a time and resumes expired leases. Monitor queue age, failed jobs, backup age and `/api/health/ready`. Set `WEDDING_UPLOAD_ONLY=1` for the app and worker during an incident to pause guest gallery, guestbook and background jobs. Verify R2 lifecycle rules for staging, abandoned multipart uploads and expired export objects before rollout. Independent replication and production recovery timing still need infrastructure verification.
+
 ## Scenarios and thresholds
 
 | Scenario | Method and evidence |
