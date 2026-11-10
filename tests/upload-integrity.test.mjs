@@ -25,6 +25,18 @@ test('checks content signatures independently of the reported MIME', async () =>
   assert.equal(await contentMatches(Buffer.from('<svg>'), 'image/png'), false)
 })
 
+test('accepts audio-only WebM and rejects video or truncated tracks as voice', async () => {
+  // WebM DocType, unknown-length Segment, and Tracks with one TrackEntry and TrackType.
+  const audio = Buffer.from('1a45dfa3874282847765626d18538067ff1654ae6b85ae83838102', 'hex')
+  const video = Buffer.from(audio)
+  video[video.length - 1] = 1
+  assert.equal(await contentMatches(audio, 'audio/webm'), true)
+  assert.equal(await contentMatches(video, 'audio/webm'), false)
+  assert.equal(await contentMatches(audio.subarray(0, -1), 'audio/webm'), false)
+  const mixed = Buffer.from('1a45dfa3874282847765626d18538067ff1654ae6b8aae83838102ae83838101', 'hex')
+  assert.equal(await contentMatches(mixed, 'audio/webm'), false)
+})
+
 test('only confirms the original after HEAD, including after a lost copy response', async () => {
   const fixture = { id: 'one', bytes: 6, contentType: 'image/jpeg', stage: 'stage', original: 'original' }
   const staged = { ETag: '"etag"', ContentLength: 6, ContentType: 'image/jpeg' }

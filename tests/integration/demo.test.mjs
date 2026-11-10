@@ -52,6 +52,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
   const login = (pass, code) => call('/api/admin/session', null, { email: ownerEmail, password: pass, code })
   const display = id => `/api/admin/events/${id}/display`
   let upload
+  let voiceUpload
   let browser
   const artworkKeys = []
   try {
@@ -81,7 +82,7 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     assert.equal((await db.query('SELECT pending_hash FROM wedding_demo_bootstrap')).rows[0].pending_hash, null)
     const code = enrollmentCode(secret)
     status(await login('admin', code), 401)
-    browser = await chromium.launch({ channel: 'chrome', headless: true })
+    browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--autoplay-policy=no-user-gesture-required'] })
     const context = await browser.newContext()
     const page = await context.newPage()
     await page.goto(`${origin}/admin`)
@@ -148,6 +149,35 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     assert.deepEqual(await (await complete()).json(), await receipt.json())
     status(await call(`/api/events/${other}/gallery?media=${upload.id}`, guest), 404)
 
+    const voice = Buffer.from(await page.evaluate(async () => {
+      const context = new AudioContext()
+      const source = context.createOscillator()
+      const output = context.createMediaStreamDestination()
+      source.connect(output)
+      source.start()
+      const recorder = new MediaRecorder(output.stream, { mimeType: 'audio/webm' })
+      const recording = new Promise(resolve => {
+        recorder.ondataavailable = async event => resolve(Array.from(new Uint8Array(await event.data.arrayBuffer())))
+      })
+      recorder.start()
+      await new Promise(resolve => setTimeout(resolve, 350))
+      recorder.stop()
+      const bytes = await recording
+      await context.close()
+      return bytes
+    }))
+    const voiceInit = await call(root + '/uploads', guest,
+      { requestId: randomUUID(), filename: 'voice.webm', type: 'audio/webm', bytes: voice.length })
+    status(voiceInit, 200)
+    voiceUpload = await voiceInit.json()
+    const voiceComplete = () => call(root + '/uploads/' + voiceUpload.id, guest, { action: 'complete' })
+    status(await voiceComplete(), 409)
+    status(await fetch(voiceUpload.url, { method: 'PUT', headers: voiceUpload.headers, body: voice }), 200)
+    status(await voiceComplete(), 200)
+    const { rows } = await db.query('SELECT content_type,moderation FROM wedding.media WHERE event_id=$1 AND id=$2',
+      [eventId, voiceUpload.id])
+    assert.deepEqual(rows, [{ content_type: 'audio/webm', moderation: 'pending' }])
+
     const themePath = `/api/admin/events/${eventId}/theme`
     status(await call(themePath, guest), 404)
     status(await call(`/api/admin/events/${other}/theme`, admin), 404)
@@ -197,9 +227,10 @@ test('demo enrolls the owner and exercises the live guest and ceremony APIs', { 
     try {
       await browser?.close()
       for (const Key of artworkKeys) await store.send(new DeleteObjectCommand({ Bucket: config.bucket, Key }))
-      if (/^[a-f0-9-]{36}$/.test(upload?.id ?? '')) {
+      for (const fixture of [upload, voiceUpload]) {
+        if (!/^[a-f0-9-]{36}$/.test(fixture?.id ?? '')) continue
         for (const area of ['staging','originals']) {
-          await store.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: `events/${eventId}/${area}/${upload.id}` }))
+          await store.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: `events/${eventId}/${area}/${fixture.id}` }))
         }
       }
     } finally {

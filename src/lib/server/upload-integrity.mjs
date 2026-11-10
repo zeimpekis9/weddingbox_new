@@ -1,4 +1,5 @@
 import { fileTypeFromBuffer } from 'file-type'
+import { audioOnlyWebm } from './webm-audio.mjs'
 
 export const partSize = 8 * 1024 * 1024
 export const multipartThreshold = 32 * 1024 * 1024
@@ -19,6 +20,7 @@ export function verifiedHead(head, id, bytes) {
 export async function contentMatches(bytes, expected) {
   try {
     const detected = await fileTypeFromBuffer(bytes)
+    if (expected === 'audio/webm') return detected?.ext === 'webm' && audioOnlyWebm(bytes)
     return detected?.mime === expected ||
       (expected === 'image/heic' && detected?.mime === 'image/heif') ||
       (expected === 'image/heif' && detected?.mime === 'image/heic')

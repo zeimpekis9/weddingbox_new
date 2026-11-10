@@ -66,3 +66,7 @@ Use [the recovery and performance plan](PERFORMANCE_AND_RECOVERY_PLAN.md) for in
 - The first broader WebKit run reproduced the intermittent admin-link prefetch console error. After disabling speculative prefetch for the affected navigation, the full WebKit suite passed.
 - Local PostgreSQL and live EU staging R2 passed owner and guest isolation, draft confidentiality, stale-write rejection, asset type and event scoping, JPEG-to-WebP cover and monogram upload, private published artwork retrieval, revoked guest delivery after reset, verified media uploads, and gallery, guestbook and ceremony integration. Synthetic artwork and upload fixtures were removed.
 - Verified the restarted loopback demo in Chrome. Its QR invitation opened the guest uploader with Christmas Elegance active. The local dashboard, Theme Studio and ceremony routes loaded with their owner access controls. Physical-device and public staging tests were outside this run.
+
+## Voice WebM
+
+- Reproduced Chrome's audio-only MediaRecorder output being identified as a WebM video container by the generic detector. The signature regression accepts a declared audio track and rejects video, mixed-track and truncated headers. A synthetic Chrome recording passed signed staging R2 upload and durable receipt verification, then appeared as pending audio in the demo database. The synthetic R2 objects were removed.
