@@ -1,4 +1,5 @@
 import { guestGrant, uuid } from '@/lib/server/guest-access'
+import { eventConfig } from '@/lib/server/guest-content'
 import { json, sameOrigin, smallJson } from '@/lib/server/http'
 import { acceptedFile, initialize, uploadInstructions } from '@/lib/server/uploads'
 
@@ -16,6 +17,10 @@ export async function POST(request: Request, context: RouteContext<'/api/events/
   try {
     const grant = await guestGrant(request, eventId)
     if (!grant) return json({ error: 'Guest access required' }, 403)
+    const settings = await eventConfig(eventId)
+    if (!(file.type.startsWith('audio/') ? settings?.voice_enabled : settings?.uploads_enabled)) {
+      return json({ error: 'Uploads are unavailable' }, 403)
+    }
     const result = await initialize(eventId, grant, file)
     if ('error' in result) return json({ error: result.error }, result.status)
     return json(await uploadInstructions(result.upload))

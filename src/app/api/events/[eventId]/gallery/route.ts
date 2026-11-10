@@ -1,0 +1,37 @@
+import { database } from '@/lib/server/db'
+import { guestGrant, uuid } from '@/lib/server/guest-access'
+import { eventConfig } from '@/lib/server/guest-content'
+import { json } from '@/lib/server/http'
+import { r2 } from '@/lib/server/r2'
+
+type Context = RouteContext<'/api/events/[eventId]/gallery'>
+
+export async function GET(request: Request, context: Context) {
+  const { eventId } = await context.params
+  const params = new URL(request.url).searchParams
+  const cursor = params.get('cursor')
+  const id = params.get('media')
+  if ((cursor && !uuid.test(cursor)) || (id && !uuid.test(id))) return json({ error: 'Invalid media reference' }, 400)
+  try {
+    if (!await guestGrant(request, eventId) || !(await eventConfig(eventId))?.gallery_enabled) {
+      return json({ error: 'Gallery unavailable' }, 404)
+    }
+    if (id) {
+      const { rows: [media] } = await database().query<{ object_key: string }>(`
+        SELECT object_key FROM wedding.media WHERE event_id=$1 AND id=$2 AND moderation='approved'
+      `, [eventId, id])
+      return media ? json({ url: await r2().signedGet(media.object_key) }) : json({ error: 'Media unavailable' }, 404)
+    }
+    const { rows } = await database().query(`
+      SELECT id, filename, content_type, created_at FROM wedding.media
+      WHERE event_id=$1 AND moderation='approved' AND
+        ($2::uuid IS NULL OR (created_at,id) < (
+          SELECT created_at,id FROM wedding.media WHERE event_id=$1 AND id=$2 AND moderation='approved'
+        ))
+      ORDER BY created_at DESC,id DESC LIMIT 25
+    `, [eventId, cursor])
+    return json({ media: rows.slice(0,24), next: rows.length === 25 ? rows[23].id : null })
+  } catch {
+    return json({ error: 'Gallery unavailable' }, 503)
+  }
+}

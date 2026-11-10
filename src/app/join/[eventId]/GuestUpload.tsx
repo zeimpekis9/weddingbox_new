@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { cancelTransfer, fingerprint, transfer } from '@/lib/client/upload'
+import GuestContent from './GuestContent'
 
 const words = {
   el: {
@@ -23,6 +24,10 @@ const words = {
 }
 type Job = { key: string; file: File; state: 'queued' | 'sending' | 'done' | 'failed' | 'cancelled'; progress: number }
 type StoredUpload = { requestId: string; session?: string }
+type Settings = {
+  title?: string; welcome_message?: string; gallery_enabled: boolean
+  uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean
+}
 
 function readUpload(key: string): StoredUpload | null {
   try {
@@ -46,6 +51,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
   const [language, setLanguage] = useState<'el' | 'en'>('el')
   const [access, setAccess] = useState<'loading' | 'ready' | 'denied'>('loading')
   const [jobs, setJobs] = useState<Job[]>([])
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [working, setWorking] = useState(false)
   const busy = useRef(false)
   const controllers = useRef(new Map<string, AbortController>())
@@ -57,9 +63,13 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
     fetch(`/api/events/${eventId}/access`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ link }), signal: controller.signal,
-    }).then(response => {
-      if (response.ok && link) window.history.replaceState(null, '', window.location.pathname)
-      setAccess(response.ok ? 'ready' : 'denied')
+    }).then(async response => {
+      if (!response.ok) return setAccess('denied')
+      const data = await response.json()
+      if (controller.signal.aborted) return
+      if (link) window.history.replaceState(null, '', window.location.pathname)
+      setSettings(data.settings ?? null)
+      setAccess('ready')
     }).catch(() => {
       if (!controller.signal.aborted) setAccess('denied')
     })
@@ -118,7 +128,7 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
     }
   }
 
-  function add(files: FileList | null) {
+  function add(files: ArrayLike<File> | null) {
     if (!files || busy.current) return
     const batch = Array.from(files).slice(0, 100).map(file =>
       ({ key: crypto.randomUUID(), file, state: 'queued' as const, progress: 0 }))
@@ -133,17 +143,19 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
           onClick={() => setLanguage(language === 'el' ? 'en' : 'el')}>{language === 'el' ? 'English' : 'Ελληνικά'}</button>
       </div>
       <h1 className="text-3xl">{text.title}</h1>
+      {settings?.title && <p className="text-xl">{settings.title}</p>}
       {access !== 'ready' ? <p role="status">{text[access]}</p> : (
         <>
-          <label className="btn-primary block cursor-pointer text-center focus-within:outline">
+          {settings?.uploads_enabled !== false && <label className="btn-primary block cursor-pointer text-center focus-within:outline">
             {text.choose}
             <input type="file" className="sr-only" multiple accept="image/*,video/*"
               disabled={working} onChange={event => {
                 add(event.target.files)
                 event.target.value = ''
               }} />
-          </label>
+          </label>}
           <p>{text.ready} {text.privacy}</p>
+          {settings?.welcome_message && <p>{settings.welcome_message}</p>}
           <p className="text-sm">{text.resume}</p>
           {jobs.length > 0 && <p role="status">{text.done} {jobs.filter(job => job.state === 'done').length} / {jobs.length}</p>}
           <ul className="space-y-3">
@@ -159,6 +171,8 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
               </li>
             ))}
           </ul>
+          {settings && <GuestContent eventId={eventId} settings={settings} language={language}
+            addVoice={file => add([file])} busy={working} />}
         </>
       )}
     </main>

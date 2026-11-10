@@ -85,6 +85,21 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
     const grant = await exchange(event)
     assert.equal(grant.status, 200)
     const guest = grant.headers.get('set-cookie').split(';')[0]
+    const book = eventId => `${origin}/api/events/${eventId}/guestbook`
+    const message = { requestId: randomUUID(), message: 'Χρόνια πολλά!' }
+    const post = eventId => fetch(book(eventId), {
+      method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    assert.equal((await post(otherEvent)).status, 403)
+    assert.equal((await post(event)).status, 201)
+    assert.equal((await post(event)).status, 200)
+    assert.equal((await fetch(book(event), { headers: { cookie: guest } })).status, 404)
+    await client.query('INSERT INTO wedding.event_settings (event_id,guest_gallery_enabled) VALUES ($1,true)', [event])
+    const readBook = () => fetch(book(event), { headers: { cookie: guest } }).then(response => response.json())
+    assert.deepEqual((await readBook()).messages, [])
+    await client.query("UPDATE wedding.submissions SET moderation='approved' WHERE event_id=$1", [event])
+    assert.deepEqual((await readBook()).messages.map(item => item.message_text), [message.message])
     const file = { requestId: randomUUID(), filename: 'test.jpg', type: 'image/jpeg', bytes: 100 }
     const init = (eventId, request = file) => fetch(`${origin}/api/events/${eventId}/uploads`, {
       method: 'POST', headers: { Origin: origin, cookie: guest, 'Content-Type': 'application/json' },
@@ -115,6 +130,8 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
   } finally {
     child.kill()
     try {
+      await client.query('DELETE FROM wedding.submissions WHERE event_id=$1', [event])
+      await client.query('DELETE FROM wedding.event_settings WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.upload_sessions WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.guest_grants WHERE event_id=$1', [event])
       await client.query('DELETE FROM wedding.guest_links WHERE event_id=$1', [event])
