@@ -1,5 +1,7 @@
 # Database and media cutover plan
 
+This procedure applies only if an owner identifies legacy data that needs preservation. Development uses a fresh PostgreSQL database and R2 storage. The preservation decision remains open until the owner confirms whether any irreplaceable records or media exist.
+
 The offline gate is `node scripts/migration/reconcile.mjs <source-manifest.json> <target-manifest.json>`. Each manifest contains an `events` array of event UUIDs and a `records` array. Records contain `id`, `eventId`, `type` and a SHA-256 of canonical metadata in `metadataSha256`. Photo, video, voice and cover records also contain `bytes` and `originalSha256`. The target includes its event-scoped original `key`. Generate both hashes independently from the source and destination bytes and keep manifests in restricted storage. The command reports aggregate mismatches and exits nonzero for discrepancies.
 
 The synthetic gate verifies matching manifests, missing records, metadata and content mismatches, and cross-event keys. The live inventory retry still failed DNS resolution. No live data import, production switch, or Supabase retirement has been executed.

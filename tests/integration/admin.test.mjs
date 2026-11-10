@@ -68,6 +68,10 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
       await new Promise(resolve => setTimeout(resolve, 200))
     }
     assert.equal(ready?.status, 401)
+    assert.equal((await fetch(`${origin}/admin`)).status, 200)
+    const alias = await fetch(`${origin}/${event}`, { redirect: 'manual' })
+    assert.equal(alias.status, 307)
+    assert.equal(alias.headers.get('location'), `/join/${event}`)
     const code = codeFor(secret)
     const login = (pass, requestOrigin = origin) => fetch(`${origin}/api/admin/session`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Origin: requestOrigin },
@@ -127,6 +131,11 @@ test('admin API authenticates with MFA and scopes, rejects replay, and revokes s
       body: JSON.stringify(body),
     })
     const settings = { kind: 'settings', gallery_enabled: true, uploads_enabled: true, messages_enabled: true, voice_enabled: true }
+    const profile = { kind: 'profile', title: 'Updated event', slug: event, date: '2027-06-12',
+      welcome: 'Καλώς ήρθατε!', color: '#a67c52' }
+    assert.equal((await patch(otherEvent, profile)).status, 404)
+    assert.equal((await patch(event, profile)).status, 200)
+    assert.equal((await (await exchange(event)).json()).settings.welcome_message, profile.welcome)
     assert.equal((await patch(otherEvent, settings)).status, 404)
     assert.equal((await patch(event, settings)).status, 200)
     const readBook = () => fetch(book(event), { headers: { cookie: guest } }).then(response => response.json())

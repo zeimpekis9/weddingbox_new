@@ -1,5 +1,7 @@
 # Supabase dependency audit
 
+Historical inventory from before runtime removal. Live inspection is optional and applies only if an owner identifies data that needs preservation.
+
 ## Runtime replacement map
 
 | Source | Existing dependency | Target |

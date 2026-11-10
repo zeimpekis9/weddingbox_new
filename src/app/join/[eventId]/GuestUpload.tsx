@@ -25,7 +25,7 @@ const words = {
 type Job = { key: string; file: File; state: 'queued' | 'sending' | 'done' | 'failed' | 'cancelled'; progress: number }
 type StoredUpload = { requestId: string; session?: string }
 type Settings = {
-  title?: string; welcome_message?: string; gallery_enabled: boolean
+  title?: string; welcome_message?: string; event_date?: string; primary_color?: string; gallery_enabled: boolean
   uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean
 }
 
@@ -143,7 +143,8 @@ export default function GuestUpload({ eventId }: { eventId: string }) {
           onClick={() => setLanguage(language === 'el' ? 'en' : 'el')}>{language === 'el' ? 'English' : 'Ελληνικά'}</button>
       </div>
       <h1 className="text-3xl">{text.title}</h1>
-      {settings?.title && <p className="text-xl">{settings.title}</p>}
+      {settings?.title && <p className="text-xl" style={{ color: settings.primary_color }}>{settings.title}</p>}
+      {settings?.event_date && <time dateTime={settings.event_date}>{settings.event_date}</time>}
       {access !== 'ready' ? <p role="status">{text[access]}</p> : (
         <>
           {settings?.uploads_enabled !== false && <label className="btn-primary block cursor-pointer text-center focus-within:outline">

@@ -7,7 +7,8 @@ import Exports from './Exports'
 type Item = { id: string; moderation: string; filename?: string; message_text?: string; content_type?: string }
 type Settings = { gallery_enabled: boolean; uploads_enabled: boolean; messages_enabled: boolean; voice_enabled: boolean }
 type Dashboard = {
-  event: { title: string; role: string }; settings: Settings
+  event: { title: string; role: string }; settings: Settings & { welcome_message?: string }
+  profile: { slug: string; event_date: string | null; primary_color: string | null }
   stats: { photos: number; videos: number; pending: number; bytes: string }
   media: Item[]; messages: Item[]; logs: { operation: string; created_at: string }[]
 }
@@ -68,6 +69,11 @@ export default function EventDashboard({ eventId }: { eventId: string }) {
     void update({ kind: 'settings', ...Object.fromEntries(Object.keys(options).map(key => [key, form.has(key)])) })
   }
 
+  function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void update({ kind: 'profile', ...Object.fromEntries(new FormData(event.currentTarget)) })
+  }
+
   function items(kind: 'media' | 'message', records: Item[]) {
     return <ul className="space-y-2">{records.map(item => (
       <li key={item.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
@@ -90,6 +96,18 @@ export default function EventDashboard({ eventId }: { eventId: string }) {
       {dashboard && <>
         <Link href={`/admin/local/${eventId}/display`} className="underline">Open ceremony display</Link>
         <p>{dashboard.stats.photos} photos · {dashboard.stats.videos} videos · {dashboard.stats.pending} pending · {dashboard.stats.bytes} bytes</p>
+        {dashboard.event.role === 'owner' && <form className="space-y-2 rounded border p-4" onSubmit={saveProfile}>
+          <h2 className="text-xl">Event details</h2>
+          <label className="block">Title <input className="input-field block w-full" name="title" required maxLength={120}
+            defaultValue={dashboard.event.title} /></label>
+          <label className="block">Event address <input className="input-field block w-full" name="slug" required maxLength={80}
+            pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={dashboard.profile.slug} /></label>
+          <label className="block">Event date <input type="date" name="date" defaultValue={dashboard.profile.event_date ?? ''} /></label>
+          <label className="block">Welcome message <textarea className="input-field block w-full" name="welcome"
+            maxLength={1000} defaultValue={dashboard.settings.welcome_message ?? ''} /></label>
+          <label className="block">Accent color <input type="color" name="color" defaultValue={dashboard.profile.primary_color ?? '#a67c52'} /></label>
+          <button className="btn-primary" disabled={saving}>Save event details</button>
+        </form>}
         {dashboard.event.role === 'owner' && <form className="space-y-2 rounded border p-4" onSubmit={saveSettings}>
           {Object.entries(options).map(([key, label]) => <label key={key} className="block">
             <input type="checkbox" name={key} defaultChecked={dashboard.settings[key as keyof Settings]} /> {label}

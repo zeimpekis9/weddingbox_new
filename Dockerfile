@@ -6,8 +6,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY next.config.js next-env.d.ts tsconfig.json tailwind.config.js postcss.config.js ./
 COPY src ./src
-ARG NEXT_PUBLIC_SUPABASE_URL=https://example.invalid
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=build-fixture
 RUN --network=none npm run build
 
 FROM ${NODE_IMAGE} AS runtime

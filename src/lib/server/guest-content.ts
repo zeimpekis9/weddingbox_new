@@ -10,3 +10,10 @@ export async function eventConfig(eventId: string) {
   }
   return settings
 }
+
+export async function eventProfile(eventId: string) {
+  const { rows: [profile] } = await database().query<{
+    slug: string; event_date: string | null; primary_color: string | null
+  }>('SELECT slug,event_date::text,primary_color FROM wedding.event_profile($1)', [eventId])
+  return profile
+}
